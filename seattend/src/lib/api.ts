@@ -12,11 +12,11 @@ export type SessionUser = {
 export type Shop = {
   _id: string;
   name: string;
-  address: string;
-  pinCode: string;
-  district: string;
-  state: string;
-  mobileNumber: string;
+  address?: string;
+  pinCode?: string;
+  district?: string;
+  state?: string;
+  mobileNumber?: string;
   shopCode?: string;
   area?: string;
   active?: boolean;
