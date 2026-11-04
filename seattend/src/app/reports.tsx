@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { api, AttendanceReport } from '../lib/api';
 import CalendarDatePicker from '../components/CalendarDatePicker';
+import BrandLogo from '../components/BrandLogo';
 import { clearSession, getSession } from '../lib/session';
 
 function kolkataDate() {
@@ -150,17 +152,20 @@ export default function ReportsScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => runReport()} tintColor="#2563EB" />}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.replace('/admin')} style={styles.backButton}>
-            <Text style={styles.backText}>‹  ADMIN</Text>
-          </Pressable>
+          <View style={styles.reportBrand}>
+            <BrandLogo width={120} height={44}/>
+            <Pressable onPress={() => router.replace('/admin')} style={styles.backButton}>
+              <Text style={styles.backText}>‹  ADMIN</Text>
+            </Pressable>
+          </View>
           <Pressable onPress={logout} style={styles.logout}><Text style={styles.logoutText}>LOG OUT</Text></Pressable>
         </View>
 
-        <Text style={styles.kicker}>SAMRIDHI ENTERPRISES</Text>
+        <Text style={styles.kicker}>FIELD OPERATIONS</Text>
         <Text style={styles.title}>Attendance reports</Text>
         <Text style={styles.subtitle}>Review employee attendance and verified shop visits. Dates follow India Standard Time.</Text>
 
-        <View style={styles.filterCard}>
+        <Animated.View entering={FadeInDown.duration(380)} style={styles.filterCard}>
           <Text style={styles.cardTitle}>Report period</Text>
           <View style={styles.dateFields}>
             <CalendarDatePicker label="FROM DATE" value={from} onChange={setFrom} mode="date" maxDate={to}/>
@@ -170,7 +175,7 @@ export default function ReportsScreen() {
           <Pressable disabled={loading} onPress={() => runReport()} style={[styles.primaryButton, loading && styles.disabled]}>
             {loading ? <ActivityIndicator color="#FFFFFF"/> : <Text style={styles.primaryText}>Generate report</Text>}
           </Pressable>
-        </View>
+        </Animated.View>
 
         <Text style={styles.sectionTitle}>Employee filter</Text>
         <Text style={styles.sectionHint}>Choose an employee or view everyone.</Text>
@@ -266,8 +271,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: '#F8FAFC' },
   muted: { color: '#64748B', fontSize: 12 },
-  content: { padding: 18, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  content: { padding: 18, paddingBottom: 40, width: '100%', maxWidth: 1040, alignSelf: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
+  reportBrand: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   backButton: { paddingVertical: 8, paddingRight: 14 },
   backText: { color: '#1D4ED8', fontSize: 10, fontWeight: '900' },
   logout: { backgroundColor: '#F1F5F9', paddingHorizontal: 11, paddingVertical: 9, borderRadius: 9 },
@@ -275,10 +281,10 @@ const styles = StyleSheet.create({
   kicker: { color: '#64748B', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: '#0F172A', fontSize: 27, fontWeight: '900', marginTop: 5 },
   subtitle: { color: '#64748B', fontSize: 11, lineHeight: 17, marginTop: 6, marginBottom: 18 },
-  filterCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 15, padding: 15, marginBottom: 20 },
+  filterCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6ECF4', borderRadius: 18, padding: 16, marginBottom: 20, shadowColor: '#0F172A', shadowOpacity: .04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   cardTitle: { color: '#0F172A', fontSize: 14, fontWeight: '900', marginBottom: 13 },
-  dateFields: { flexDirection: 'row', gap: 9 },
-  dateField: { flex: 1 },
+  dateFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  dateField: { flex: 1, minWidth: 135 },
   label: { color: '#64748B', fontSize: 8, fontWeight: '900', marginBottom: 6 },
   input: { height: 43, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 9, paddingHorizontal: 10, color: '#1E293B', fontSize: 11 },
   helper: { color: '#94A3B8', fontSize: 9, marginTop: 8 },
@@ -296,7 +302,7 @@ const styles = StyleSheet.create({
   exportButton: { backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 9, minWidth: 112, alignItems: 'center' },
   exportText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 22 },
-  statCard: { width: '48%', flexGrow: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 13 },
+  statCard: { width: '30%', minWidth: 135, flexGrow: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6ECF4', borderRadius: 15, padding: 15, shadowColor: '#0F172A', shadowOpacity: .035, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   statValue: { color: '#1D4ED8', fontSize: 22, fontWeight: '900' },
   statLabel: { color: '#64748B', fontSize: 9, marginTop: 4 },
   employeeCard: { backgroundColor: '#FFFFFF', borderRadius: 13, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 9, overflow: 'hidden' },
