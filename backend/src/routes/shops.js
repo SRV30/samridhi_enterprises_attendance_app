@@ -127,7 +127,8 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
           latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
         return res.status(400).json({ message: 'Invalid coordinates' });
       }
-      shop.location = { latitude, longitude };
+      shop.location.latitude = latitude;
+      shop.location.longitude = longitude;
     }
     const previousStatus = shop.verificationStatus;
     if (body.verificationStatus !== undefined) {
