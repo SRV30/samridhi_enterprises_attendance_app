@@ -256,7 +256,7 @@ export default function DashboardScreen() {
       </>}
     </View>
     <Text style={styles.footer}>{activePage === 'visits' ? 'Location is requested only when you press Check In. The server verifies the 50-metre distance using registered shop coordinates.' : 'Submitted shops require admin verification before employees can check in.'}</Text>
-    </>}
+    </Animated.View>}
   </ScrollView>
 
     <Modal visible={passwordVisible} animationType="slide" transparent onRequestClose={()=>setPasswordVisible(false)}>
