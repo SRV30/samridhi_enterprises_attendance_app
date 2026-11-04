@@ -57,6 +57,10 @@ export default function AdminScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [auditPage, setAuditPage] = useState(1);
   const [auditPages, setAuditPages] = useState(1);
@@ -124,6 +128,23 @@ export default function AdminScreen() {
       setNotifications(current => current.map(item => ({...item,readAt:item.readAt || new Date().toISOString()})));
       setUnreadCount(0);
     } catch(error) { Alert.alert('Could not update notifications',error instanceof Error?error.message:'Please try again.'); }
+  };
+
+
+  const submitPasswordChange = async () => {
+    if (!token || saving) return;
+    if (!currentPassword || !newPassword || !confirmPassword) { Alert.alert('Missing details', 'Enter all three password fields.'); return; }
+    if (newPassword.length < 8) { Alert.alert('Weak password', 'Use at least 8 characters for your new password.'); return; }
+    if (newPassword !== confirmPassword) { Alert.alert('Passwords do not match', 'Confirm the new password correctly.'); return; }
+    setSaving(true);
+    try {
+      const result = await api.changePassword(token, currentPassword, newPassword);
+      setPasswordVisible(false);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      Alert.alert('Password updated', result.message);
+    } catch (error) {
+      Alert.alert('Password update failed', error instanceof Error ? error.message : 'Please try again.');
+    } finally { setSaving(false); }
   };
 
   const logout = async () => { await clearSession(); router.replace('/'); };
@@ -362,7 +383,7 @@ export default function AdminScreen() {
     <StatusBar style="dark"/>
     <View style={styles.header}>
       <View style={styles.brandRow}><View style={styles.brandMark}><Text style={styles.brandLetter}>S</Text></View><View><Text style={styles.kicker}>SAMRIDHI ENTERPRISES</Text><Text style={styles.heading}>Admin workspace</Text></View></View>
-      <View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel={`Notifications, ${unreadCount} unread`} onPress={()=>setNotificationsVisible(true)} style={styles.bellButton}><Text style={styles.bellIcon}>🔔</Text>{unreadCount>0&&<View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unreadCount>99?'99+':unreadCount}</Text></View>}</Pressable><Pressable onPress={() => router.push('/reports')} style={styles.reportsLink}><Text style={styles.reportsLinkText}>REPORTS</Text></Pressable><Pressable onPress={logout} style={styles.logout}><Text style={styles.logoutText}>LOG OUT</Text></Pressable></View>
+      <View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Change password" onPress={()=>setPasswordVisible(true)} style={styles.bellButton}><Text style={styles.bellIcon}>🔑</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Notifications, ${unreadCount} unread`} onPress={()=>setNotificationsVisible(true)} style={styles.bellButton}><Text style={styles.bellIcon}>🔔</Text>{unreadCount>0&&<View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unreadCount>99?'99+':unreadCount}</Text></View>}</Pressable><Pressable onPress={() => router.push('/reports')} style={styles.reportsLink}><Text style={styles.reportsLinkText}>REPORTS</Text></Pressable><Pressable onPress={logout} style={styles.logout}><Text style={styles.logoutText}>LOG OUT</Text></Pressable></View>
     </View>
     <View style={styles.tabs}>
       {(['overview','people','shops','audit'] as Tab[]).map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item === 'overview' ? 'Overview' : item === 'people' ? 'People' : item === 'shops' ? 'Shops' : 'Audit'}</Text></Pressable>)}
@@ -480,6 +501,26 @@ export default function AdminScreen() {
       </>}
       <Text style={styles.footer}>Admin access only. Employee location is requested only when they initiate a shop check-in.</Text>
     </ScrollView>
+
+    <Modal visible={passwordVisible} animationType="slide" transparent onRequestClose={()=>setPasswordVisible(false)}>
+      <View style={styles.notificationOverlay}>
+        <View style={styles.notificationSheet}>
+          <View style={styles.notificationSheetHeader}>
+            <View style={{flex:1}}><Text style={styles.notificationTitle}>Change password</Text><Text style={styles.notificationHint}>Update your administrator login password</Text></View>
+            <Pressable onPress={()=>setPasswordVisible(false)} style={styles.notificationClose}><Text style={styles.notificationCloseText}>CLOSE</Text></Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.passwordForm}>
+            <Text style={styles.passwordLabel}>CURRENT PASSWORD</Text>
+            <TextInput value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} placeholder="Enter current password" style={styles.passwordInput}/>
+            <Text style={styles.passwordLabel}>NEW PASSWORD</Text>
+            <TextInput value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} placeholder="At least 8 characters" style={styles.passwordInput}/>
+            <Text style={styles.passwordLabel}>CONFIRM NEW PASSWORD</Text>
+            <TextInput value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} placeholder="Enter new password again" style={styles.passwordInput}/>
+            <Pressable disabled={saving} onPress={submitPasswordChange} style={[styles.passwordSubmit,saving&&{opacity:.6}]}><Text style={styles.passwordSubmitText}>{saving?'UPDATING…':'UPDATE PASSWORD'}</Text></Pressable>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
     <Modal visible={notificationsVisible} animationType="slide" transparent onRequestClose={()=>setNotificationsVisible(false)}>
       <View style={styles.notificationOverlay}>
         <View style={styles.notificationSheet}>
@@ -549,7 +590,7 @@ function Primary({label,onPress,disabled}:{label:string;onPress:()=>void;disable
 
 const styles = StyleSheet.create({
  safe:{flex:1,backgroundColor:'#F8FAFC'},center:{flex:1,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#F8FAFC'},muted:{fontSize:12,color:'#64748B'},
- header:{paddingHorizontal:18,paddingTop:12,paddingBottom:14,flexDirection:'row',flexWrap:'wrap',rowGap:10,alignItems:'center',justifyContent:'space-between'},headerActions:{flexDirection:'row',alignItems:'center',gap:7,flexShrink:0},bellButton:{width:38,height:38,borderRadius:11,backgroundColor:'#EFF6FF',alignItems:'center',justifyContent:'center',position:'relative'},bellIcon:{fontSize:22,color:'#1D4ED8'},bellBadge:{position:'absolute',right:-4,top:-4,minWidth:17,height:17,borderRadius:9,backgroundColor:'#DC2626',alignItems:'center',justifyContent:'center',paddingHorizontal:3,borderWidth:1,borderColor:'#fff'},bellBadgeText:{fontSize:8,fontWeight:'900',color:'#fff'},notificationOverlay:{flex:1,backgroundColor:'#0F172A66',justifyContent:'flex-end'},notificationSheet:{maxHeight:'78%',backgroundColor:'#fff',borderTopLeftRadius:20,borderTopRightRadius:20,padding:18},notificationSheetHeader:{flexDirection:'row',alignItems:'center',gap:10,paddingBottom:12,borderBottomWidth:1,borderBottomColor:'#E2E8F0'},notificationClose:{paddingHorizontal:9,paddingVertical:7,backgroundColor:'#F1F5F9',borderRadius:8},notificationCloseText:{fontSize:9,fontWeight:'900',color:'#475569'},notificationList:{paddingBottom:24},notificationEmpty:{paddingVertical:35,textAlign:'center',fontSize:12,color:'#64748B'},reportsLink:{backgroundColor:'#EFF6FF',paddingHorizontal:10,paddingVertical:9,borderRadius:9},reportsLinkText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},brandRow:{flexDirection:'row',alignItems:'center',gap:10,flexShrink:1},brandMark:{width:39,height:39,borderRadius:12,backgroundColor:'#2563EB',alignItems:'center',justifyContent:'center'},brandLetter:{color:'#fff',fontSize:18,fontWeight:'900'},kicker:{fontSize:8,fontWeight:'900',letterSpacing:1.2,color:'#64748B'},heading:{fontSize:18,fontWeight:'900',color:'#0F172A',marginTop:3},logout:{backgroundColor:'#F1F5F9',paddingHorizontal:9,paddingVertical:9,borderRadius:9,flexShrink:0},logoutText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},
+ header:{paddingHorizontal:18,paddingTop:12,paddingBottom:14,flexDirection:'row',flexWrap:'wrap',rowGap:10,alignItems:'center',justifyContent:'space-between'},headerActions:{flexDirection:'row',alignItems:'center',gap:7,flexShrink:0},bellButton:{width:38,height:38,borderRadius:11,backgroundColor:'#EFF6FF',alignItems:'center',justifyContent:'center',position:'relative'},bellIcon:{fontSize:22,color:'#1D4ED8'},bellBadge:{position:'absolute',right:-4,top:-4,minWidth:17,height:17,borderRadius:9,backgroundColor:'#DC2626',alignItems:'center',justifyContent:'center',paddingHorizontal:3,borderWidth:1,borderColor:'#fff'},bellBadgeText:{fontSize:8,fontWeight:'900',color:'#fff'},notificationOverlay:{flex:1,backgroundColor:'#0F172A66',justifyContent:'flex-end'},notificationSheet:{maxHeight:'78%',backgroundColor:'#fff',borderTopLeftRadius:20,borderTopRightRadius:20,padding:18},notificationSheetHeader:{flexDirection:'row',alignItems:'center',gap:10,paddingBottom:12,borderBottomWidth:1,borderBottomColor:'#E2E8F0'},notificationClose:{paddingHorizontal:9,paddingVertical:7,backgroundColor:'#F1F5F9',borderRadius:8},notificationCloseText:{fontSize:9,fontWeight:'900',color:'#475569'},notificationList:{paddingBottom:24},notificationEmpty:{paddingVertical:35,textAlign:'center',fontSize:12,color:'#64748B'},passwordForm:{paddingTop:16,paddingBottom:10},passwordLabel:{fontSize:9,fontWeight:'900',letterSpacing:.7,color:'#475569',marginBottom:6,marginTop:10},passwordInput:{height:46,borderWidth:1,borderColor:'#CBD5E1',borderRadius:10,paddingHorizontal:12,backgroundColor:'#fff',color:'#0F172A',marginBottom:8},passwordSubmit:{height:46,backgroundColor:'#1D4ED8',borderRadius:10,alignItems:'center',justifyContent:'center',marginTop:14},passwordSubmitText:{fontSize:10,fontWeight:'900',color:'#fff'},reportsLink:{backgroundColor:'#EFF6FF',paddingHorizontal:10,paddingVertical:9,borderRadius:9},reportsLinkText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},brandRow:{flexDirection:'row',alignItems:'center',gap:10,flexShrink:1},brandMark:{width:39,height:39,borderRadius:12,backgroundColor:'#2563EB',alignItems:'center',justifyContent:'center'},brandLetter:{color:'#fff',fontSize:18,fontWeight:'900'},kicker:{fontSize:8,fontWeight:'900',letterSpacing:1.2,color:'#64748B'},heading:{fontSize:18,fontWeight:'900',color:'#0F172A',marginTop:3},logout:{backgroundColor:'#F1F5F9',paddingHorizontal:9,paddingVertical:9,borderRadius:9,flexShrink:0},logoutText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},
  tabs:{flexDirection:'row',marginHorizontal:18,backgroundColor:'#F1F5F9',borderRadius:11,padding:4},tab:{flex:1,paddingVertical:10,borderRadius:8,alignItems:'center'},tabActive:{backgroundColor:'#fff',elevation:1},tabText:{fontSize:11,fontWeight:'700',color:'#64748B'},tabTextActive:{color:'#1D4ED8'},
  content:{padding:18,paddingBottom:34},auditItem:{paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9'},auditTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},auditAction:{fontSize:10,fontWeight:'900',color:'#1E293B'},auditRole:{fontSize:8,fontWeight:'900',color:'#1D4ED8',backgroundColor:'#EFF6FF',paddingHorizontal:7,paddingVertical:4,borderRadius:7,overflow:'hidden'},auditEntity:{fontSize:10,color:'#334155',marginTop:5},auditActor:{fontSize:9,color:'#64748B',marginTop:4},auditMeta:{fontSize:9,color:'#475569',marginTop:3},auditPagination:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:12,borderTopWidth:1,borderTopColor:'#E2E8F0'},auditPageText:{fontSize:9,fontWeight:'700',color:'#64748B'},notificationPanel:{marginHorizontal:18,marginBottom:10,backgroundColor:'#fff',borderWidth:1,borderColor:'#E2E8F0',borderRadius:13,padding:13},notificationHeader:{flexDirection:'row',alignItems:'center',marginBottom:8},notificationTitle:{fontSize:13,fontWeight:'900',color:'#0F172A'},notificationHint:{fontSize:10,color:'#64748B',marginTop:3},notificationAction:{fontSize:8,fontWeight:'900',color:'#1D4ED8'},notificationItem:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},notificationUnread:{backgroundColor:'#EFF6FF',paddingHorizontal:7,borderRadius:7},notificationItemTitle:{fontSize:10,fontWeight:'800',color:'#1E293B'},notificationMessage:{fontSize:10,color:'#475569',lineHeight:15,marginTop:3},notificationDate:{fontSize:8,color:'#94A3B8',marginTop:4},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
