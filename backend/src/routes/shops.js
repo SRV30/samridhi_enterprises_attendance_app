@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Shop = require('../models/Shop');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 const { authenticate, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -61,6 +63,18 @@ router.post('/', allowRoles('admin', 'employee'), async (req, res, next) => {
       verifiedBy: isAdmin ? req.user._id : null,
       verifiedAt: isAdmin ? new Date() : null
     });
+    if (!isAdmin) {
+      const admins = await User.find({ role: 'admin', active: true, isDeleted: { $ne: true } }).select('_id').lean();
+      if (admins.length) {
+        await Notification.insertMany(admins.map(admin => ({
+          recipient: admin._id,
+          title: 'New shop awaiting approval',
+          message: shop.name + ' was submitted by ' + req.user.name + '. Review the shop details and GPS pin.',
+          type: 'SHOP_SUBMITTED',
+          shop: shop._id
+        })));
+      }
+    }
     res.status(201).json({
       message: isAdmin ? 'Shop registered and verified' : 'Shop submitted for admin verification',
       shop
@@ -109,6 +123,7 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
       }
       shop.location = { latitude, longitude };
     }
+    const previousStatus = shop.verificationStatus;
     if (body.verificationStatus !== undefined) {
       if (!['PENDING', 'VERIFIED', 'REJECTED'].includes(body.verificationStatus)) {
         return res.status(400).json({ message: 'Invalid verification status' });
@@ -121,6 +136,18 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
     if (body.rejectionReason !== undefined) shop.rejectionReason = cleanText(body.rejectionReason);
 
     await shop.save();
+    if (previousStatus !== shop.verificationStatus && ['VERIFIED', 'REJECTED'].includes(shop.verificationStatus) && shop.createdBy) {
+      const approved = shop.verificationStatus === 'VERIFIED';
+      await Notification.create({
+        recipient: shop.createdBy,
+        title: approved ? 'Your shop has been approved' : 'Your shop registration needs correction',
+        message: approved
+          ? shop.name + ' has been approved. It is now available for employee check-ins.'
+          : shop.name + ' was rejected. ' + (shop.rejectionReason || 'Please contact your admin for correction details.'),
+        type: approved ? 'SHOP_APPROVED' : 'SHOP_REJECTED',
+        shop: shop._id
+      });
+    }
     res.json({ message: 'Shop updated', shop });
   } catch (error) { next(error); }
 });
