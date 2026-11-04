@@ -2,15 +2,23 @@
 
 A dedicated mobile attendance and field-visit application for Samridhi Enterprises.
 
+## Account roles
+
+The app has exactly two roles:
+
+- **Admin** — manages employee accounts, registered shops, attendance reports and exports.
+- **Employee** — checks in at registered shops and views personal attendance and visit history.
+
+There are no manager accounts, manager dashboards or employee-manager assignments.
+
 ## Current capabilities
 
-- Role-based sign-in for Admin, Manager and Employee accounts.
+- Role-based sign-in for Admin and Employee accounts.
 - Employee dashboard with shop search, attendance status and verified visit history.
 - One-time foreground GPS capture when an employee starts a check-in.
 - Server-side distance calculation against trusted shop coordinates and a 50-metre radius.
-- Admin workspace for accounts, manager assignments, shop registration, shop editing, GPS pin correction, and shop deactivation/reactivation.
+- Admin workspace for employee accounts, shop registration, shop editing, GPS pin correction, and shop deactivation/reactivation.
 - Shop location capture by map pin, current location or Google Maps link.
-- Manager workspace showing only assigned employees and their daily verified shop visits.
 - Admin attendance reports with date-range filters, employee filtering, day-wise visit details and Excel-compatible CSV export.
 - Asia/Kolkata attendance-day boundaries and report timestamps.
 
@@ -66,20 +74,12 @@ npx expo start --tunnel
 5. The server verifies reported accuracy and calculates distance to the registered shop pin.
 6. A successful first visit marks attendance Present for the Asia/Kolkata day. Other unique shop visits are recorded; repeat visits to the same shop on the same day return the existing record.
 
-### Manager
-
-1. Sign in using the manager account.
-2. Review the assigned employees, daily attendance status and verified shop visits.
-3. Pull down to refresh the current-day view.
-
-The backend scopes the manager team endpoint to employees assigned to that manager account.
-
 ### Admin
 
-1. Create manager and employee accounts.
-2. Assign or reassign employees to active managers, or leave them unassigned.
-3. Register shops and set their trusted GPS coordinates.
-4. Review today's attendance and visits.
+1. Create employee accounts and manage account access.
+2. Register shops and set their trusted GPS coordinates.
+3. Edit shop details and coordinates, or deactivate/reactivate a shop without deleting its visit history.
+4. Review all employees' daily attendance and verified visits.
 5. Open Reports to filter by date range and employee, inspect day-wise details, and share a CSV export.
 
 ## Privacy and security
@@ -98,4 +98,4 @@ The backend scopes the manager team endpoint to employees assigned to that manag
 
 ## Production status
 
-The core role workflows and reporting features are implemented in the repository. Physical-device testing, production backend deployment with HTTPS, operational backup/security checks and Play Store release preparation remain necessary before production rollout.
+The core two-role workflows and reporting features are implemented in the repository. Existing databases require the one-time `npm run migrate:roles` migration in `backend/` before starting the updated API. Physical-device testing, production backend deployment with HTTPS, operational backup/security checks and Play Store release preparation remain necessary before production rollout.
