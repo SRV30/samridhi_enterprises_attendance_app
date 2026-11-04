@@ -97,7 +97,7 @@ router.get('/team/today', allowRoles('admin'), async (req, res, next) => {
     const ids = employees.map(employee => employee._id);
     const visits = await Visit.find({ employee: { $in: ids }, attendanceDay: day })
       .populate('employee', 'name employeeId email phone')
-      .populate('shop', 'name address pinCode district state location')
+      .populate('shop', 'name shopCode address area pinCode district state mobileNumber location active verificationStatus createdAt')
       .sort({ checkedInAt: 1 }).lean();
     res.json({ date: day, employees: employees.map(employee => {
       const ownVisits = visits.filter(visit => String(visit.employee._id) === String(employee._id));
