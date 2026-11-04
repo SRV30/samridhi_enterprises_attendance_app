@@ -13,6 +13,7 @@ export type Shop = {
   shopCode: string;
   address?: string;
   area?: string;
+  location?: { latitude: number; longitude: number };
 };
 
 export type Visit = {
@@ -20,6 +21,24 @@ export type Visit = {
   checkedInAt: string;
   distanceMeters: number;
   shop: Shop;
+  employee?: { _id: string; name: string; employeeId: string };
+};
+
+export type ManagedUser = {
+  _id: string;
+  id?: string;
+  name: string;
+  employeeId: string;
+  email?: string;
+  role: 'admin' | 'manager' | 'employee';
+  manager?: { _id: string; name: string; employeeId: string } | string | null;
+  active: boolean;
+};
+
+export type TeamEmployee = ManagedUser & {
+  attendance: string;
+  visitCount: number;
+  visits: Visit[];
 };
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
@@ -58,6 +77,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ shopId, ...coords }),
     }, token),
+  users: (token: string) => request<{ users: ManagedUser[] }>('/users', {}, token),
+  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string; role: 'manager' | 'employee'; managerId?: string }) =>
+    request<{ user: ManagedUser }>('/users', { method: 'POST', body: JSON.stringify(data) }, token),
+  updateUser: (token: string, id: string, data: { active?: boolean; managerId?: string | null }) =>
+    request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  createShop: (token: string, data: { name: string; shopCode: string; address?: string; area?: string; latitude: number; longitude: number }) =>
+    request<{ shop: Shop }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
+  teamToday: (token: string) =>
+    request<{ date: string; employees: TeamEmployee[] }>('/visits/team/today', {}, token),
 };
 
 export function apiConfigured() {
