@@ -156,8 +156,8 @@ export default function AdminScreen() {
       if (permission.granted && await Location.hasServicesEnabledAsync()) {
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: true });
         setMapCenter(shopLocation || { latitude: position.coords.latitude, longitude: position.coords.longitude });
-      } else setMapCenter(null);
-    } catch { setMapCenter(null); }
+      } else setMapCenter(shopLocation);
+    } catch { setMapCenter(shopLocation); }
     setMapVisible(true);
   };
 
