@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
-    "migrate:roles": "node src/scripts/migrateRoles.js"
+    "migrate:roles": "node src/scripts/migrateRoles.js",
+    "check": "find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "engines": {
     "node": ">=20"
