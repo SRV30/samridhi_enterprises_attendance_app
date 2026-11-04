@@ -72,6 +72,18 @@ export type TeamEmployee = ManagedUser & {
   visitCount: number;
   visits: Visit[];
 };
+export type AuditLog = {
+  _id: string;
+  actorName: string;
+  actorRole: 'admin' | 'employee' | 'system';
+  action: string;
+  entityType: 'account' | 'shop' | 'visit';
+  entityId: string;
+  entityLabel: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+};
+
 export type AttendanceReportVisit = {
   id: string;
   shopName: string;
@@ -164,6 +176,9 @@ export const api = {
     request<{ message: string }>(`/shops/${id}`, { method: 'DELETE' }, token),
   teamToday: (token: string) =>
     request<{ date: string; employees: TeamEmployee[] }>('/visits/team/today', {}, token),
+
+  auditLogs: (token: string, page = 1, limit = 30) =>
+    request<{ logs: AuditLog[]; pagination: { page: number; limit: number; total: number; pages: number } }>(`/audit?page=${page}&limit=${limit}`, {}, token),
 
   attendanceReport: (token: string, from: string, to: string, employeeId?: string) => {
     const query = new URLSearchParams({ from, to });
