@@ -370,6 +370,7 @@ export default function AdminScreen() {
               <Text style={styles.rowTitle}>{person.name}</Text>
               <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.active ? 'Active' : 'Inactive'}</Text>
             </View>
+            <Pressable disabled={saving} onPress={()=>viewUserDetails(person)} style={styles.smallAction}><Text style={styles.smallActionText}>View profile</Text></Pressable>
             {person.role === 'employee'
               ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
               : <Text style={styles.adminAccountTag}>ADMIN</Text>}
