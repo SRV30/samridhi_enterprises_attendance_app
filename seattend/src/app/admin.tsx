@@ -62,7 +62,7 @@ export default function AdminScreen() {
   const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapsLink, setMapsLink] = useState('');
   const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '' });
+  const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' as 'admin' | 'employee' });
   const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
@@ -110,10 +110,10 @@ export default function AdminScreen() {
       await api.createUser(token, {
         name: userForm.name.trim(), employeeId: userForm.employeeId.trim(),
         ...(userForm.email.trim() ? { email: userForm.email.trim() } : {}),
-        password: userForm.password
+        password: userForm.password, role: userForm.role
       });
-      Alert.alert('Employee created', `Employee account ${userForm.employeeId} created.`);
-      setUserForm({ name: '', employeeId: '', email: '', password: '' });
+      Alert.alert('Account created', `${userForm.role === 'admin' ? 'Admin' : 'Employee'} account ${userForm.employeeId} created.`);
+      setUserForm({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
       await load(token);
     } catch (error) { Alert.alert('Could not create account', error instanceof Error ? error.message : 'Please try again.'); }
     finally { setSaving(false); }
@@ -301,10 +301,30 @@ export default function AdminScreen() {
           <Field label="EMPLOYEE ID" value={userForm.employeeId} onChange={v=>setUserForm({...userForm,employeeId:v})} placeholder="e.g. EMP001" autoCapitalize="characters"/>
           <Field label="EMAIL (OPTIONAL)" value={userForm.email} onChange={v=>setUserForm({...userForm,email:v})} placeholder="name@example.com" keyboardType="email-address"/>
           <Field label="TEMPORARY PASSWORD" value={userForm.password} onChange={v=>setUserForm({...userForm,password:v})} placeholder="Set initial password" secureTextEntry/>
-          <Primary label={saving?'Creating…':'Create account'} onPress={createAccount} disabled={saving}/>
+          <Text style={styles.fieldLabel}>ACCOUNT ROLE</Text>
+          <View style={styles.rolePicker}>
+            <Pressable disabled={saving} onPress={()=>setUserForm({...userForm,role:'employee'})} style={[styles.roleOption,userForm.role==='employee'&&styles.roleOptionSelected]}>
+              <Text style={[styles.roleOptionTitle,userForm.role==='employee'&&styles.roleOptionTitleSelected]}>Employee</Text>
+              <Text style={styles.roleOptionHint}>Shop check-in and personal attendance</Text>
+            </Pressable>
+            <Pressable disabled={saving} onPress={()=>setUserForm({...userForm,role:'admin'})} style={[styles.roleOption,userForm.role==='admin'&&styles.roleOptionSelected]}>
+              <Text style={[styles.roleOptionTitle,userForm.role==='admin'&&styles.roleOptionTitleSelected]}>Admin</Text>
+              <Text style={styles.roleOptionHint}>Manage accounts, shops and reports</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.note}>Admin accounts have full administrative access, including the ability to create other admin accounts.</Text>
+          <Primary label={saving?'Creating…':`Create ${userForm.role === 'admin' ? 'admin' : 'employee'} account`} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Employee accounts" hint="Deactivate access or reactivate an employee account.">
-          {employees.length===0 ? <Empty text="No employees have been created yet."/> : employees.map(person=><View key={person._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · Employee</Text></View><Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable></View>)}
+        <Section title="Account directory" hint="Admin accounts have full access. Employee accounts can be deactivated or reactivated.">
+          {users.length===0 ? <Empty text="No accounts found."/> : users.map(person=><View key={person._id} style={styles.listRow}>
+            <View style={{flex:1}}>
+              <Text style={styles.rowTitle}>{person.name}</Text>
+              <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.active ? 'Active' : 'Inactive'}</Text>
+            </View>
+            {person.role === 'employee'
+              ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
+              : <Text style={styles.adminAccountTag}>ADMIN</Text>}
+          </View>)}
         </Section>
       </>}
       {tab === 'shops' && <>
@@ -365,6 +385,6 @@ const styles = StyleSheet.create({
  content:{padding:18,paddingBottom:34},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E2E8F0'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#0F172A'},sectionHint:{fontSize:10,color:'#64748B',marginTop:4,marginBottom:13},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#1E293B'},rowSub:{fontSize:9,color:'#64748B',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#EFF6FF',color:'#1D4ED8'},absent:{backgroundColor:'#F1F5F9',color:'#64748B'},distance:{fontSize:9,color:'#64748B',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#64748B',textAlign:'center',paddingVertical:20},
- field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
+ rolePicker:{flexDirection:'row',gap:9,marginBottom:12},roleOption:{flex:1,borderWidth:1,borderColor:'#E2E8F0',borderRadius:11,padding:12,backgroundColor:'#FFFFFF'},roleOptionSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},roleOptionTitle:{fontSize:11,fontWeight:'900',color:'#334155'},roleOptionTitleSelected:{color:'#1D4ED8'},roleOptionHint:{fontSize:8,lineHeight:13,color:'#64748B',marginTop:5},adminAccountTag:{fontSize:8,fontWeight:'900',color:'#1D4ED8',paddingHorizontal:9,paddingVertical:6,backgroundColor:'#EFF6FF',borderRadius:10,overflow:'hidden'},field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
  locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F8FAFC'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#64748B',marginBottom:9}
 });
