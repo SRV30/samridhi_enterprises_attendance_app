@@ -75,6 +75,8 @@ export type ManagedUser = {
   phone?: string;
   role: 'admin' | 'employee';
   active: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
 };
 
 export type UserDetails = ManagedUser & { createdAt?: string; updatedAt?: string; deletedAt?: string | null; totalVisits: number; presentDays: number; recentVisits: Visit[]; recentVisitsLimit: number; };
