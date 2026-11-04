@@ -1,0 +1,11 @@
+$login = Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:5000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body (@{
+    employeeId = "sahilrv196@gmail.com"
+    password = "12345678"
+  } | ConvertTo-Json)
+
+$headers = @{
+  Authorization = "Bearer $($login.token)"
+}
