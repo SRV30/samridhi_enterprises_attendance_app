@@ -33,7 +33,7 @@ router.post('/check-in', allowRoles('employee'), async (req, res, next) => {
 
     try {
       const visit = await Visit.create({
-        employee: req.user.id, shop: shop.id, attendanceDay: day, checkedInAt: new Date(),
+        employee: req.user.id, shop: shop.id, shopName: shop.name, shopPlaceName: shop.location?.placeName || '', shopAddress: shop.address || '', attendanceDay: day, checkedInAt: new Date(),
         reportedLocation: { latitude, longitude, accuracyMeters },
         distanceMeters: Math.round(distance * 100) / 100
       });
