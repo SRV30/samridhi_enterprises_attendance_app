@@ -26,9 +26,8 @@ function validateShop(body) {
 router.get('/', async (req, res, next) => {
   try {
     const filter = req.user.role === 'admin'
-      ? (req.query.status && ['PENDING', 'VERIFIED', 'REJECTED'].includes(req.query.status)
-          ? { verificationStatus: req.query.status } : {})
-      : { $or: [
+      ? { isDeleted: { $ne: true }, ...(req.query.status && ['PENDING', 'VERIFIED', 'REJECTED'].includes(req.query.status) ? { verificationStatus: req.query.status } : {}) }
+      : { isDeleted: { $ne: true }, $or: [
           { verificationStatus: 'VERIFIED', active: true },
           { createdBy: req.user._id, verificationStatus: { $in: ['PENDING', 'REJECTED'] } }
         ] };
@@ -130,9 +129,9 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
 router.delete('/:id', allowRoles('admin'), async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid shop ID' });
-    const shop = await Shop.findByIdAndDelete(req.params.id);
+    const shop = await Shop.findOneAndUpdate({ _id: req.params.id, isDeleted: { $ne: true } }, { $set: { isDeleted: true, active: false } }, { new: true });
     if (!shop) return res.status(404).json({ message: 'Shop not found' });
-    res.json({ message: 'Shop deleted successfully' });
+    res.json({ message: 'Shop removed from the directory. Historical visits are preserved.' });
   } catch (error) { next(error); }
 });
 
