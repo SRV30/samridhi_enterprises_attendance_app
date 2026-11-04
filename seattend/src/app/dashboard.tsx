@@ -307,7 +307,7 @@ export default function DashboardScreen() {
     {filtered.map(shop=><View key={shop._id} style={styles.shopCard}><View style={styles.shopInfo}><Text style={styles.shopName}>{shop.name}</Text><Text style={styles.shopArea}>{shop.location?.placeName || shop.address || 'Place name unavailable'} · {[shop.district, shop.state].filter(Boolean).join(', ')} {shop.pinCode || ''}</Text></View><Pressable disabled={!!checking} onPress={()=>checkIn(shop)} style={({pressed})=>[styles.checkButton,pressed&&{opacity:.8},checking===shop._id&&{opacity:.6}]}>{checking===shop._id?<ActivityIndicator color="#fff"/>:<Text style={styles.checkText}>CHECK IN</Text>}</Pressable></View>)}
     {filtered.length===0&&<Text style={styles.empty}>No approved shops match your search.</Text>}
     <View style={styles.historyHeader}><Text style={styles.sectionTitle}>Today's visits</Text><Text style={styles.shopCount}>{today?.visits.length||0} RECORDED</Text></View>
-    {(today?.visits||[]).map(v=><View key={v._id} style={styles.visitCard}><View style={{flex:1}}><Text style={styles.shopName}>{v.shop?.name||'Shop visit'}</Text><Text style={styles.shopArea}>{v.shop?.location?.placeName || v.shop?.address || 'Place name unavailable'} · {new Date(v.checkedInAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</Text></View><Text style={styles.verified}>VERIFIED</Text></View>)}
+    {(today?.visits||[]).map(v=><View key={v._id} style={styles.visitCard}><View style={{flex:1}}><Text style={styles.shopName}>{v.shop?.name || v.shopName || 'Shop visit'}</Text><Text style={styles.shopArea}>{v.shop?.location?.placeName || v.shopPlaceName || v.shop?.address || v.shopAddress || 'Place name unavailable'} · {new Date(v.checkedInAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</Text></View><Text style={styles.verified}>VERIFIED</Text></View>)}
     {(!today?.visits||today.visits.length===0)&&<Text style={styles.empty}>Your verified shop visits will appear here.</Text>}
     <View style={styles.historyPanel}>
       <Text style={styles.sectionTitle}>Monthly attendance history</Text>
@@ -326,7 +326,7 @@ export default function DashboardScreen() {
         {attendanceHistory.days.length===0 ? <Text style={styles.empty}>No verified attendance for this month.</Text> : attendanceHistory.days.map(day=><View key={day.date} style={styles.historyDay}>
           <View style={styles.historyDayHeader}><Text style={styles.historyDayDate}>{new Date(day.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',weekday:'short'})}</Text><Text style={styles.historyDayCount}>{day.visitCount} {day.visitCount===1?'visit':'visits'}</Text></View>
           {day.visits.map(visit=><View key={visit._id} style={styles.historyVisit}>
-            <View style={{flex:1}}><Text style={styles.shopName}>{visit.shop?.name||'Shop visit'}</Text><Text style={styles.shopArea}>{visit.shop?.location?.placeName || visit.shop?.address || 'Place name unavailable'}</Text></View>
+            <View style={{flex:1}}><Text style={styles.shopName}>{visit.shop?.name || visit.shopName || 'Shop visit'}</Text><Text style={styles.shopArea}>{visit.shop?.location?.placeName || visit.shopPlaceName || visit.shop?.address || visit.shopAddress || 'Place name unavailable'}</Text></View>
             <View style={{alignItems:'flex-end'}}><Text style={styles.historyTime}>{new Date(visit.checkedInAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</Text><Text style={styles.verified}>VERIFIED</Text></View>
           </View>)}
         </View>)}
