@@ -43,4 +43,27 @@ router.get('/me', authenticate, (req, res) => {
   });
 });
 
+router.patch('/password', authenticate, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof currentPassword !== 'string' || !currentPassword || typeof newPassword !== 'string' || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 8) return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    if (Buffer.byteLength(newPassword, 'utf8') > 72) return res.status(400).json({ message: 'New password must not exceed 72 bytes' });
+    if (currentPassword === newPassword) return res.status(400).json({ message: 'New password must be different from your current password' });
+
+    const user = await User.findById(req.user._id).select('+passwordHash');
+    if (!user || !user.active || user.isDeleted) return res.status(401).json({ message: 'Account unavailable' });
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ message: 'Password updated successfully. Use your new password next time you sign in.' });
+  } catch (error) { next(error); }
+});
+
 module.exports = router;
