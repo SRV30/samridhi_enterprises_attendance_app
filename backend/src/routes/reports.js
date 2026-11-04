@@ -150,6 +150,7 @@ function toCsv(report) {
 router.get('/attendance', async (req, res, next) => {
   try {
     const report = await buildReport(req.query);
+    res.setHeader('Cache-Control', 'no-store');
     res.json(report);
   } catch (error) {
     if (error.status) return res.status(error.status).json({ message: error.message });
