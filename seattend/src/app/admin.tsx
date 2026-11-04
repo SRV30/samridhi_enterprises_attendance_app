@@ -1,51 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { api, AppNotification, AuditLog, ManagedUser, Shop, TeamEmployee, UserDetails } from '../lib/api';
 import IndiaAddressFields from '../components/IndiaAddressFields';
 import { clearSession, getSession } from '../lib/session';
 
 type Tab = 'overview' | 'people' | 'shops' | 'audit';
 
-const MAP_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;width:100%;margin:0;padding:0}#searchPanel{position:absolute;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:12px;box-shadow:0 2px 10px #0003;font:14px Arial}#searchRow{display:flex;gap:6px}#placeQuery{min-width:0;flex:1;border:1px solid #CBD5E1;border-radius:8px;padding:11px;font-size:14px}#searchBtn{border:0;border-radius:8px;background:#2563EB;color:#fff;padding:0 14px;font-weight:bold}#hint{font-size:11px;color:#64748B;margin-top:7px}#results{max-height:155px;overflow:auto;margin-top:5px}#results button{display:block;width:100%;text-align:left;background:white;border:0;border-top:1px solid #E2E8F0;padding:10px 5px;font-size:12px;color:#1E293B}</style></head><body><div id="map"></div><div id="searchPanel"><div id="searchRow"><input id="placeQuery" placeholder="Search shop, address or landmark" autocomplete="off"><button id="searchBtn" onclick="searchPlaces()">SEARCH</button></div><div id="hint">Search for a place, select a result, then fine-tune the pin by tapping the map.</div><div id="results"></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const map=L.map('map').setView([29.8543,77.8880],13);setTimeout(()=>map.invalidateSize(),350);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);let marker=null;async function choosePoint(lat,lon,label){if(marker)map.removeLayer(marker);marker=L.marker([lat,lon]).addTo(map);map.setView([lat,lon],18);document.getElementById('hint').textContent=label||'Selected place';let placeName=label||'';try{const response=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon);if(response.ok){const data=await response.json();placeName=data.name||data.display_name||placeName;}}catch(e){}document.getElementById('hint').textContent=placeName||'Selected map location';window.ReactNativeWebView.postMessage(JSON.stringify({latitude:lat,longitude:lon,placeName}));}));}map.on('click',function(e){choosePoint(e.latlng.lat,e.latlng.lng,'Pin selected. Tap again to adjust the shop entrance location.');});window.addEventListener('resize',()=>map.invalidateSize());async function searchPlaces(){const q=document.getElementById('placeQuery').value.trim();const results=document.getElementById('results');if(!q){document.getElementById('hint').textContent='Enter a shop name, address or nearby landmark.';return;}results.innerHTML='';document.getElementById('hint').textContent='Searching places…';try{const response=await fetch('https://photon.komoot.io/api/?limit=6&q='+encodeURIComponent(q));if(!response.ok)throw new Error('Search service unavailable');const data=await response.json();if(!data.features||!data.features.length){document.getElementById('hint').textContent='No results found. Try a fuller address or nearby landmark.';return;}document.getElementById('hint').textContent='Select the correct result, then adjust the pin to the shop entrance.';data.features.forEach(feature=>{const p=feature.properties||{};const label=[p.name,p.street,p.city||p.locality,p.state,p.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ')||'Unnamed place';const button=document.createElement('button');button.textContent=label;button.onclick=()=>{const coords=feature.geometry.coordinates;choosePoint(coords[1],coords[0],label);results.innerHTML='';};results.appendChild(button);});}catch(e){document.getElementById('hint').textContent='Could not search right now. Check internet and try again, or tap the map manually.';}}document.getElementById('placeQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchPlaces();});</script></body></html>`;
-
-function validCoordinates(latitude: number, longitude: number) {
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
-}
-
-function coordinatesFromMapLink(raw: string): { latitude: number; longitude: number } | null {
-  const text = raw.trim().replace(/&amp;/g, '&');
-  if (!text) return null;
-  const patterns: RegExp[] = [
-    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
-    /[?&](?:q|query|ll|center|destination)=(-?\d+(?:\.\d+)?)(?:%2C|,)(-?\d+(?:\.\d+)?)/i,
-    /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
-    /(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/
-  ];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const latitude = Number(match[1]), longitude = Number(match[2]);
-      if (validCoordinates(latitude, longitude)) return { latitude, longitude };
-    }
-  }
-  try {
-    const url = new URL(text);
-    for (const key of ['q', 'query', 'll', 'center', 'destination']) {
-      const value = url.searchParams.get(key);
-      const match = value?.match(/(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
-      if (match) {
-        const latitude = Number(match[1]), longitude = Number(match[2]);
-        if (validCoordinates(latitude, longitude)) return { latitude, longitude };
-      }
-    }
-  } catch {}
-  return null;
-}
 
 export default function AdminScreen() {
   const [token, setToken] = useState<string | null>(null);
@@ -69,11 +33,6 @@ export default function AdminScreen() {
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [mapVisible, setMapVisible] = useState(false);
-  const mapWebView = useRef<WebView | null>(null);
-  const [mapCenter, setMapCenter] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number; placeName: string } | null>(null);
-  const [mapsLink, setMapsLink] = useState('');
   const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number; placeName: string } | null>(null);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'employee' as 'admin' | 'employee' });
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
@@ -239,64 +198,15 @@ export default function AdminScreen() {
       const places = await Location.reverseGeocodeAsync({ latitude: reading.latitude, longitude: reading.longitude });
       const place = places[0];
       const placeName = place ? [place.name, place.street, place.district, place.city, place.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ') : '';
-      if (!placeName) throw new Error('Could not identify a readable place name. Search and select the shop on the map instead.');
+      if (!placeName) throw new Error('Could not identify a readable place name. Check your GPS signal and try again.');
       setShopLocation({ latitude: reading.latitude, longitude: reading.longitude, placeName });
       Alert.alert('Place identified', placeName + '. GPS accuracy: about ' + Math.round(reading.accuracy) + 'm.');
     } catch (error) { Alert.alert('Could not get accurate GPS', error instanceof Error ? error.message : 'Please try again.'); }
   };
 
-  const openMapPicker = async () => {
-    setMapPin(null);
-    if (shopLocation) setMapCenter(shopLocation);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.granted && await Location.hasServicesEnabledAsync()) {
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: true });
-        setMapCenter(shopLocation || { latitude: position.coords.latitude, longitude: position.coords.longitude });
-      } else setMapCenter(shopLocation);
-    } catch { setMapCenter(shopLocation); }
-    setMapVisible(true);
-  };
-
-  const onMapLoaded = () => {
-    if (mapCenter) mapWebView.current?.injectJavaScript('map.setView([' + mapCenter.latitude + ',' + mapCenter.longitude + '],17); true;');
-  };
-
-  const acceptMapPin = () => {
-    if (!mapPin || !mapPin.placeName.trim()) { Alert.alert('Select a place', 'Choose a named place from search or tap the map and wait for its place name.'); return; }
-    setShopLocation(mapPin);
-    setMapVisible(false);
-    Alert.alert('Place selected', mapPin.placeName);
-  };
-
-  const useMapsLink = async () => {
-    const input = mapsLink.trim();
-    if (!input) { Alert.alert('Paste a map link', 'Paste the Google Maps Share link first.'); return; }
-    let coordinates = coordinatesFromMapLink(input);
-    if (!coordinates && /^https?:\/\//i.test(input)) {
-      try {
-        const response = await fetch(input, { method: 'GET' });
-        coordinates = coordinatesFromMapLink(response.url || input);
-      } catch {}
-    }
-    if (!coordinates) {
-      Alert.alert('Could not extract shop pin', 'This Maps link did not expose coordinates. In Google Maps, open the exact shop place, tap Share, and copy the full link. If a shortened link cannot be resolved, use Search on Map and select the shop address, then fine-tune the pin.');
-      return;
-    }
-    try {
-      const places = await Location.reverseGeocodeAsync(coordinates);
-      const place = places[0];
-      const placeName = place ? [place.name, place.street, place.district, place.city, place.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ') : '';
-      if (!placeName) throw new Error('Could not identify a readable place name.');
-      setShopLocation({ ...coordinates, placeName });
-      Alert.alert('Place identified', placeName);
-    } catch(error) { Alert.alert('Could not identify place', error instanceof Error ? error.message : 'Select the place on the map.'); }
-  };
-
   const resetShopForm = () => {
     setShopForm({ name: '', address: '', pinCode: '', district: '', state: 'Uttarakhand', mobileNumber: '' });
     setShopLocation(null);
-    setMapsLink('');
     setEditingShopId(null);
   };
 
@@ -475,12 +385,8 @@ export default function AdminScreen() {
           <View style={styles.locationBox}>
             <Text style={styles.locationTitle}>SHOP PLACE</Text>
             <Text style={styles.locationHint}>{shopLocation?.placeName || 'No named place selected yet'}</Text>
-            <Pressable onPress={openMapPicker} style={styles.locationButton}><Text style={styles.locationButtonText}>1. Select on map</Text></Pressable>
-            <Pressable onPress={useCurrentLocation} style={styles.locationButton}><Text style={styles.locationButtonText}>2. Use current location</Text></Pressable>
-            <Text style={styles.fieldLabel}>3. PASTE GOOGLE MAPS LINK</Text>
-            <TextInput value={mapsLink} onChangeText={setMapsLink} placeholder="https://maps.app.goo.gl/..." placeholderTextColor="#94A3B8" autoCapitalize="none" autoCorrect={false} style={styles.input}/>
-            <Pressable onPress={useMapsLink} style={styles.linkButton}><Text style={styles.linkButtonText}>Read location from link</Text></Pressable>
-            {shopLocation && <Pressable onPress={()=>{setShopLocation(null);setMapsLink('');}}><Text style={styles.clearLocation}>Clear selected location</Text></Pressable>}
+            <Pressable onPress={useCurrentLocation} style={styles.locationButton}><Text style={styles.locationButtonText}>Use current GPS location</Text></Pressable>
+            {shopLocation && <Pressable onPress={()=>setShopLocation(null)}><Text style={styles.clearLocation}>Clear selected location</Text></Pressable>}
           </View>
           <Text style={styles.note}>The readable place name is shown here. Coordinates remain internal for 50-metre check-in verification and are never displayed.</Text>
           <Primary label={saving ? (editingShopId ? 'Saving…' : 'Registering…') : (editingShopId ? 'Save shop changes' : 'Register shop')} onPress={createShop} disabled={saving}/>
@@ -561,13 +467,6 @@ export default function AdminScreen() {
         </View>
       </View>
     </Modal>
-    <Modal visible={mapVisible} animationType="slide" onRequestClose={()=>setMapVisible(false)}>
-      <SafeAreaView style={styles.mapModal}>
-        <View style={styles.mapHeader}><View style={{flex:1}}><Text style={styles.sectionTitle}>Select shop on map</Text><Text style={styles.sectionHint}>Tap the exact shop entrance to place a pin.</Text></View><Pressable onPress={()=>setMapVisible(false)}><Text style={styles.closeMap}>CLOSE</Text></Pressable></View>
-        <WebView ref={mapWebView} originWhitelist={['*']} source={{html:MAP_HTML}} javaScriptEnabled domStorageEnabled onLoadEnd={onMapLoaded} onError={()=>Alert.alert('Map loading failed','Check your internet connection and try again.')} onMessage={(event:WebViewMessageEvent)=>{try{const point=JSON.parse(event.nativeEvent.data);if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude))setMapPin({latitude:point.latitude,longitude:point.longitude,placeName:String(point.placeName||'')});}catch{}}}/>
-        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin?.placeName || 'Tap the map or select a search result to identify a place'}</Text><Primary label="Use this map location" onPress={acceptMapPin} disabled={!mapPin}/></View>
-      </SafeAreaView>
-    </Modal>
     <Modal visible={profileVisible} animationType="slide" onRequestClose={()=>setProfileVisible(false)}>
       <SafeAreaView style={styles.profileModal}>
         <View style={styles.mapHeader}>
@@ -621,6 +520,6 @@ const styles = StyleSheet.create({
  content:{padding:18,paddingBottom:34},auditItem:{paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9'},auditTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},auditAction:{fontSize:10,fontWeight:'900',color:'#1E293B'},auditRole:{fontSize:8,fontWeight:'900',color:'#1D4ED8',backgroundColor:'#EFF6FF',paddingHorizontal:7,paddingVertical:4,borderRadius:7,overflow:'hidden'},auditEntity:{fontSize:10,color:'#334155',marginTop:5},auditActor:{fontSize:9,color:'#64748B',marginTop:4},auditMeta:{fontSize:9,color:'#475569',marginTop:3},auditPagination:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:12,borderTopWidth:1,borderTopColor:'#E2E8F0'},auditPageText:{fontSize:9,fontWeight:'700',color:'#64748B'},notificationPanel:{marginHorizontal:18,marginBottom:10,backgroundColor:'#fff',borderWidth:1,borderColor:'#E2E8F0',borderRadius:13,padding:13},notificationHeader:{flexDirection:'row',alignItems:'center',marginBottom:8},notificationTitle:{fontSize:13,fontWeight:'900',color:'#0F172A'},notificationHint:{fontSize:10,color:'#64748B',marginTop:3},notificationAction:{fontSize:8,fontWeight:'900',color:'#1D4ED8'},notificationItem:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},notificationUnread:{backgroundColor:'#EFF6FF',paddingHorizontal:7,borderRadius:7},notificationItemTitle:{fontSize:10,fontWeight:'800',color:'#1E293B'},notificationMessage:{fontSize:10,color:'#475569',lineHeight:15,marginTop:3},notificationDate:{fontSize:8,color:'#94A3B8',marginTop:4},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E2E8F0'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#0F172A'},sectionHint:{fontSize:10,color:'#64748B',marginTop:4,marginBottom:13},teamAttendanceCard:{backgroundColor:'#F8FAFC',borderWidth:1,borderColor:'#E2E8F0',borderRadius:12,padding:12,marginTop:10},teamAttendanceHeader:{flexDirection:'row',alignItems:'center',gap:8,paddingBottom:10,borderBottomWidth:1,borderBottomColor:'#E2E8F0'},teamDetailsGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:10},teamDetail:{width:'47%',flexGrow:1,minWidth:110},teamDetailLabel:{fontSize:8,fontWeight:'900',letterSpacing:.5,color:'#64748B'},teamDetailValue:{fontSize:10,fontWeight:'700',color:'#1E293B',marginTop:3},teamVisitList:{marginTop:13},teamVisitHeading:{fontSize:8,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},teamVisitCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,padding:10,marginTop:7},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#1E293B'},rowSub:{fontSize:9,color:'#64748B',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#EFF6FF',color:'#1D4ED8'},absent:{backgroundColor:'#F1F5F9',color:'#64748B'},distance:{fontSize:9,color:'#64748B',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#64748B',textAlign:'center',paddingVertical:20},
- rolePicker:{flexDirection:'row',gap:9,marginBottom:12},roleOption:{flex:1,borderWidth:1,borderColor:'#E2E8F0',borderRadius:11,padding:12,backgroundColor:'#FFFFFF'},roleOptionSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},roleOptionTitle:{fontSize:11,fontWeight:'900',color:'#334155'},roleOptionTitleSelected:{color:'#1D4ED8'},roleOptionHint:{fontSize:8,lineHeight:13,color:'#64748B',marginTop:5},adminAccountTag:{fontSize:8,fontWeight:'900',color:'#1D4ED8',paddingHorizontal:9,paddingVertical:6,backgroundColor:'#EFF6FF',borderRadius:10,overflow:'hidden'},field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
- locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F8FAFC'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#64748B',marginBottom:9},profileModal:{flex:1,backgroundColor:'#F8FAFC'},profileContent:{padding:18,paddingBottom:36,gap:12},profileCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#E2E8F0',borderRadius:14,padding:15},profileName:{color:'#0F172A',fontSize:20,fontWeight:'900',marginBottom:4},profileRole:{color:'#1D4ED8',fontSize:9,fontWeight:'900',letterSpacing:1,marginBottom:14},profileLine:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},profileLabel:{fontSize:8,fontWeight:'900',color:'#64748B',letterSpacing:.8},profileValue:{fontSize:11,fontWeight:'700',color:'#1E293B',marginTop:4},profileStats:{flexDirection:'row',gap:9}
+ rolePicker:{flexDirection:'row',gap:9,marginBottom:12},roleOption:{flex:1,borderWidth:1,borderColor:'#E2E8F0',borderRadius:11,padding:12,backgroundColor:'#FFFFFF'},roleOptionSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},roleOptionTitle:{fontSize:11,fontWeight:'900',color:'#334155'},roleOptionTitleSelected:{color:'#1D4ED8'},roleOptionHint:{fontSize:8,lineHeight:13,color:'#64748B',marginTop:5},adminAccountTag:{fontSize:8,fontWeight:'900',color:'#1D4ED8',paddingHorizontal:9,paddingVertical:6,backgroundColor:'#EFF6FF',borderRadius:10,overflow:'hidden'},field:{marginBottom:12},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
+ locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},profileModal:{flex:1,backgroundColor:'#F8FAFC'},profileContent:{padding:18,paddingBottom:36,gap:12},profileCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#E2E8F0',borderRadius:14,padding:15},profileName:{color:'#0F172A',fontSize:20,fontWeight:'900',marginBottom:4},profileRole:{color:'#1D4ED8',fontSize:9,fontWeight:'900',letterSpacing:1,marginBottom:14},profileLine:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},profileLabel:{fontSize:8,fontWeight:'900',color:'#64748B',letterSpacing:.8},profileValue:{fontSize:11,fontWeight:'700',color:'#1E293B',marginTop:4},profileStats:{flexDirection:'row',gap:9}
 });
