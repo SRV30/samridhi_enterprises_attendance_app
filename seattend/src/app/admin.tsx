@@ -399,7 +399,7 @@ export default function AdminScreen() {
           {team.length === 0 ? <Empty text="No employees have been created yet."/> : team.map(person => <View key={person._id} style={styles.listRow}><View style={{flex:1}}><Pressable disabled={saving} onPress={()=>viewUserDetails(person)}><Text style={styles.rowTitle}>{person.name}</Text></Pressable><Text style={styles.rowSub}>{person.employeeId} · {person.visitCount} visits</Text></View><Text style={[styles.status, person.attendance === 'Present' ? styles.present : styles.absent]}>{person.attendance}</Text></View>)}
         </Section>
         <Section title="Recent verified visits" hint="Today's employee visit totals.">
-          {team.flatMap(person => person.visits.map(visit => ({...visit, employeeName: person.name}))).length === 0 ? <Empty text="No verified visits recorded today."/> : team.flatMap(person => person.visits.map(visit => ({...visit, employeeName: person.name}))).map(visit => <View key={visit._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{visit.shop?.name || 'Shop'}</Text><Text style={styles.rowSub}>{visit.shop?.location?.placeName || visit.shop?.address || 'Place name unavailable'}</Text><Text style={styles.rowSub}>{visit.employeeName} · {new Date(visit.checkedInAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</Text></View><Text style={styles.distance}>{Math.round(visit.distanceMeters)} m</Text></View>)}
+          {team.flatMap(person => person.visits.map(visit => ({...visit, employeeName: person.name}))).length === 0 ? <Empty text="No verified visits recorded today."/> : team.flatMap(person => person.visits.map(visit => ({...visit, employeeName: person.name}))).map(visit => <View key={visit._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{visit.shop?.name || visit.shopName || 'Shop'}</Text><Text style={styles.rowSub}>{visit.shop?.location?.placeName || visit.shopPlaceName || visit.shop?.address || visit.shopAddress || 'Place name unavailable'}</Text><Text style={styles.rowSub}>{visit.employeeName} · {new Date(visit.checkedInAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</Text></View><Text style={styles.distance}>{Math.round(visit.distanceMeters)} m</Text></View>)}
         </Section>
       </>}
       {tab === 'people' && <>
@@ -468,7 +468,7 @@ export default function AdminScreen() {
                 <Text style={styles.rowSub}>{shop.address || 'Address not available'} · {[shop.district, shop.state].filter(Boolean).join(', ') || 'Location details pending'} {shop.pinCode ? '- ' + shop.pinCode : ''}</Text>
                 <Text style={styles.rowSub}>Mobile: {shop.mobileNumber || 'Not available'} · Submitted by: {shop.createdBy?.name || 'Legacy / Admin'}</Text>
                 {shop.verificationStatus === 'REJECTED' && <Text style={styles.rejectionReason}>Rejection reason: {shop.rejectionReason || 'Details require correction'}</Text>}
-                <Text style={styles.rowSub}>Place: {shop.location?.placeName || 'Place name unavailable'}</Text>
+                <Text style={styles.rowSub}>Place: {shop.location?.placeName || shop.address || 'Place name unavailable'}</Text>
               </View>
               <Text style={[styles.shopState, shop.verificationStatus === 'VERIFIED' ? styles.shopVerified : shop.verificationStatus === 'REJECTED' ? styles.shopRejected : styles.shopPending]}>{shop.verificationStatus || 'VERIFIED'}</Text>
             </View>
@@ -569,7 +569,7 @@ export default function AdminScreen() {
             <Text style={styles.sectionHint}>Showing up to {selectedUser.recentVisitsLimit} most recent visits.</Text>
             {selectedUser.recentVisits.length === 0 ? <Empty text="No verified visits recorded for this account."/> : selectedUser.recentVisits.map(visit=><View key={visit._id} style={styles.listRow}>
               <View style={{flex:1}}>
-                <Text style={styles.rowTitle}>{visit.shop?.name || 'Registered shop'}</Text>
+                <Text style={styles.rowTitle}>{visit.shop?.name || visit.shopName || 'Registered shop'}</Text>
                 <Text style={styles.rowSub}>{visit.shop?.location?.placeName || visit.shop?.address || 'Place name unavailable'}</Text><Text style={styles.rowSub}>{visit.shop?.shopCode || '—'} · {new Date(visit.checkedInAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</Text>
               </View>
               <Text style={styles.distance}>{Math.round(visit.distanceMeters)} m</Text>
