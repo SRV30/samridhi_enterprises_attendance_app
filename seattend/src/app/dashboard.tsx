@@ -191,10 +191,10 @@ export default function DashboardScreen() {
       <Pressable onPress={()=>setActivePage('visits')} style={[styles.pageTab,activePage==='visits'&&styles.pageTabActive]}><Text style={[styles.pageTabText,activePage==='visits'&&styles.pageTabTextActive]}>FIND SHOP & VISITS</Text></Pressable>
       <Pressable onPress={()=>setActivePage('register')} style={[styles.pageTab,activePage==='register'&&styles.pageTabActive]}><Text style={[styles.pageTabText,activePage==='register'&&styles.pageTabTextActive]}>REGISTER SHOP</Text></Pressable>
     </View>
-    {activePage === 'visits' && <>
+    {activePage === 'visits' && <Animated.View entering={FadeInDown.duration(320)}>
     <Animated.View entering={FadeInDown.duration(380)} style={styles.summaryCard}><Text style={styles.summaryLabel}>TODAY'S ATTENDANCE · {today?.date||'—'}</Text><Text style={styles.summaryStatus}>{today?.attendance||'Not marked'}</Text><View style={styles.summaryDivider}/><View style={styles.metrics}><View><Text style={styles.metricValue}>{today?.visitCount??0}</Text><Text style={styles.metricLabel}>Verified visits</Text></View><View><Text style={styles.metricValue}>50 m</Text><Text style={styles.metricLabel}>Check-in radius</Text></View></View></Animated.View>
-    </>}
-    {activePage === 'register' && <>
+    </Animated.View>}
+    {activePage === 'register' && <Animated.View entering={FadeInDown.duration(320)}>
     <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Register a shop</Text><Text style={styles.sectionHint}>Submit a new shop for admin verification</Text></View></View>
     <View style={styles.registerCard}>
       <TextInput value={shopForm.name} onChangeText={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name" placeholderTextColor="#94A3B8" style={styles.search}/>
@@ -223,8 +223,8 @@ export default function DashboardScreen() {
         <Text style={[styles.pendingLabel,shop.verificationStatus === 'REJECTED'&&styles.rejectedLabel]}>{shop.verificationStatus === 'REJECTED' ? 'REJECTED' : 'PENDING'}</Text>
       </View>)}
     </>}
-    </>}
-    {activePage === 'visits' && <>
+    </Animated.View>}
+    {activePage === 'visits' && <Animated.View entering={FadeInDown.duration(320)}>
     <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Find a shop</Text><Text style={styles.sectionHint}>Check in at any approved registered shop</Text></View><Text style={styles.shopCount}>{shops.length} SHOPS</Text></View>
     <TextInput accessibilityLabel="Search registered shops" value={query} onChangeText={setQuery} placeholder="Search shop name, area or ID" placeholderTextColor="#9AA5B4" style={styles.search}/>
     {filtered.map(shop=><View key={shop._id} style={styles.shopCard}><View style={styles.shopInfo}><Text style={styles.shopName}>{shop.name}</Text><Text style={styles.shopArea}>{shop.location?.placeName || shop.address || 'Place name unavailable'} · {[shop.district, shop.state].filter(Boolean).join(', ')} {shop.pinCode || ''}</Text></View><Pressable disabled={!!checking} onPress={()=>checkIn(shop)} style={({pressed})=>[styles.checkButton,pressed&&{opacity:.8},checking===shop._id&&{opacity:.6}]}>{checking===shop._id?<ActivityIndicator color="#fff"/>:<Text style={styles.checkText}>CHECK IN</Text>}</Pressable></View>)}
