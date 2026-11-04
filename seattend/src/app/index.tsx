@@ -25,7 +25,7 @@ export default function LoginScreen() {
     try {
       const result = await api.login(employeeId.trim(), password);
       await saveSession(result.token, result.user);
-      router.replace('/dashboard');
+      router.replace(result.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error) {
       Alert.alert('Sign-in failed', error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -40,17 +40,17 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.topLine}><View style={styles.brandMark}><Text style={styles.brandMarkText}>S</Text></View><Text style={styles.brandCaption}>SAMRIDHI ENTERPRISES</Text></View>
           <View style={styles.hero}>
-            <View style={styles.eyebrow}><View style={styles.eyebrowDot}/><Text style={styles.eyebrowText}>FIELD TEAM PORTAL</Text></View>
+            <View style={styles.eyebrow}><View style={styles.eyebrowDot}/><Text style={styles.eyebrowText}>SALES ATTENDANCE PORTAL</Text></View>
             <Text style={styles.title}>Welcome{ '\n' }back.</Text>
-            <Text style={styles.subtitle}>Sign in to manage your shop visits and daily attendance.</Text>
+            <Text style={styles.subtitle}>Sign in to manage attendance, people and registered shop visits.</Text>
           </View>
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Employee login</Text>
-            <Text style={styles.formSubtitle}>Use the credentials provided by your administrator.</Text>
-            <View style={styles.fieldGroup}><Text style={styles.label}>EMPLOYEE ID</Text><TextInput accessibilityLabel="Employee ID" autoCapitalize="characters" autoCorrect={false} onChangeText={setEmployeeId} placeholder="e.g. SE-001" placeholderTextColor="#9AA4B2" returnKeyType="next" style={styles.input} value={employeeId}/></View>
+            <Text style={styles.formTitle}>Sign in</Text>
+            <Text style={styles.formSubtitle}>Use the account credentials provided by your administrator.</Text>
+            <View style={styles.fieldGroup}><Text style={styles.label}>EMPLOYEE ID / ADMIN ID</Text><TextInput accessibilityLabel="Employee ID" autoCapitalize="characters" autoCorrect={false} onChangeText={setEmployeeId} placeholder="Enter your ID" placeholderTextColor="#9AA4B2" returnKeyType="next" style={styles.input} value={employeeId}/></View>
             <View style={styles.fieldGroup}><Text style={styles.label}>PASSWORD</Text><View style={styles.passwordWrap}><TextInput accessibilityLabel="Password" autoCapitalize="none" autoCorrect={false} onChangeText={setPassword} onSubmitEditing={handleLogin} placeholder="Enter your password" placeholderTextColor="#9AA4B2" returnKeyType="go" secureTextEntry={!showPassword} style={styles.passwordInput} value={password}/><Pressable accessibilityRole="button" onPress={() => setShowPassword(v => !v)}><Text style={styles.showPassword}>{showPassword ? 'HIDE' : 'SHOW'}</Text></Pressable></View></View>
             <Pressable accessibilityRole="button" disabled={busy} onPress={handleLogin} style={({pressed}) => [styles.loginButton, pressed && styles.loginButtonPressed, busy && {opacity:0.7}]}>{busy ? <ActivityIndicator color="#FFFFFF"/> : <><Text style={styles.loginButtonText}>Sign in</Text><Text style={styles.loginArrow}>→</Text></>}</Pressable>
-            <Text style={styles.helpText}>Need help accessing your account? Contact your manager.</Text>
+            <Text style={styles.helpText}>Your role determines which attendance workspace opens.</Text>
           </View>
           <View style={styles.footer}><View style={styles.footerRule}/><Text style={styles.footerText}>LOCATION-VERIFIED FIELD ATTENDANCE</Text><Text style={styles.versionText}>SAMRIDHI ATTENDANCE • VERSION 1.0</Text></View>
         </ScrollView>
