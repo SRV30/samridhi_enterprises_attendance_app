@@ -62,7 +62,10 @@ export type Visit = {
   _id: string;
   checkedInAt: string;
   distanceMeters: number;
-  shop: Shop;
+  shop: Shop | null;
+  shopName?: string;
+  shopPlaceName?: string;
+  shopAddress?: string;
   employee?: { _id: string; name: string; employeeId: string };
 };
 
