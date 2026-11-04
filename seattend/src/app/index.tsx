@@ -13,8 +13,8 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const handleLogin = async () => {
-    if (!employeeId.trim() || !password) {
-      Alert.alert('Missing details', 'Enter your Employee ID and password.');
+    if (!email.trim() || !password) {
+      Alert.alert('Missing details', 'Enter your email address and password.');
       return;
     }
     if (!apiConfigured()) {
@@ -23,7 +23,7 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      const result = await api.login(employeeId.trim(), password);
+      const result = await api.login(email.trim(), password);
       await saveSession(result.token, result.user);
       router.replace(result.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error) {
