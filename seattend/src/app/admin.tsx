@@ -422,8 +422,8 @@ export default function AdminScreen() {
             <Text style={styles.auditEntity}>{item.entityLabel || item.entityType} · {item.entityType}</Text>
             <Text style={styles.auditActor}>By {item.actorName} · {new Date(item.createdAt).toLocaleString('en-IN')}</Text>
             {item.details?.distanceMeters !== undefined && <Text style={styles.auditMeta}>GPS distance: {String(item.details.distanceMeters)} m</Text>}
-            {item.details?.changedFields && <Text style={styles.auditMeta}>Changed: {(item.details.changedFields as string[]).join(', ')}</Text>}
-            {Boolean(item.details?.rejectionReason) && <Text style={styles.auditMeta}>Reason: {String(item.details.rejectionReason)}</Text>}
+            {Boolean(item.details?.changedFields) && <Text style={styles.auditMeta}>Changed: {((item.details?.changedFields || []) as string[]).join(', ')}</Text>}
+            {Boolean(item.details?.rejectionReason) && <Text style={styles.auditMeta}>Reason: {String(item.details?.rejectionReason)}</Text>}
           </View>)}
           <View style={styles.auditPagination}>
             <Pressable disabled={auditPage <= 1 || saving} onPress={async()=>{if(!token)return;setSaving(true);try{const result=await api.auditLogs(token,auditPage-1);setAuditLogs(result.logs);setAuditPage(result.pagination.page);}catch(error){Alert.alert('Could not load audit history',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}} style={[styles.smallAction,(auditPage<=1)&&{opacity:.4}]}><Text style={styles.smallActionText}>Previous</Text></Pressable>
