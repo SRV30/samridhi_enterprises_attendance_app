@@ -309,7 +309,7 @@ export default function AdminScreen() {
       };
       if (editingShopId) {
         await api.updateShop(token, editingShopId, payload);
-        Alert.alert('Shop updated', 'Shop details and its trusted GPS coordinates have been updated.');
+        Alert.alert('Shop updated', 'Shop details and its named place have been updated.');
       } else {
         await api.createShop(token, payload);
         Alert.alert('Shop registered', 'The shop is registered and available for employee check-ins.');
