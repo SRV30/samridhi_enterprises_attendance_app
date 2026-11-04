@@ -12,7 +12,8 @@ function kolkataDate() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
   }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const values: Record<string, string> = {};
+  parts.forEach(part => { values[part.type] = part.value; });
   return values.year + '-' + values.month + '-' + values.day;
 }
 
@@ -105,9 +106,9 @@ export default function ReportsScreen() {
     if (!token || !report) return;
     setExporting(true);
     try {
-      const csv = await api.attendanceReportCsv(token, from, to, selectedEmployeeId || undefined);
+      const csv = await api.attendanceReportCsv(token, report.from, report.to, selectedEmployeeId || undefined);
       const suffix = selectedEmployeeId ? '-employee' : '-all-employees';
-      const fileName = 'samridhi-attendance-' + from + '-to-' + to + suffix + '.csv';
+      const fileName = 'samridhi-attendance-' + report.from + '-to-' + report.to + suffix + '.csv';
       const file = new File(Paths.cache, fileName);
       file.create({ overwrite: true });
       await file.write(csv);
