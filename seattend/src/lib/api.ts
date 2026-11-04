@@ -164,6 +164,7 @@ export const api = {
       body: JSON.stringify({ identifier, password }),
     }),
   me: (token: string) => request<SessionUser>('/auth/me', {}, token),
+  changePassword: (token: string, currentPassword: string, newPassword: string) => request<{ message: string }>('/auth/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) }, token),
   shops: (token: string, status?: 'PENDING' | 'VERIFIED' | 'REJECTED') => request<{ shops: Shop[] }>(status ? `/shops?status=${status}` : '/shops', {}, token),
   notifications: (token: string) => request<{ notifications: AppNotification[]; unreadCount: number }>('/notifications', {}, token),
   markNotificationRead: (token: string, id: string) => request<{ message: string }>(`/notifications/${id}/read`, { method: 'PATCH' }, token),
