@@ -115,7 +115,7 @@ export const api = {
       body: JSON.stringify({ shopId, ...coords }),
     }, token),
   users: (token: string) => request<{ users: ManagedUser[] }>('/users', {}, token),
-  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string }) =>
+  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string; role: 'admin' | 'employee' }) =>
     request<{ user: ManagedUser }>('/users', { method: 'POST', body: JSON.stringify(data) }, token),
   updateUser: (token: string, id: string, data: { active: boolean }) =>
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
