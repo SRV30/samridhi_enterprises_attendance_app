@@ -419,9 +419,46 @@ export default function AdminScreen() {
         <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin ? `Pin: ${mapPin.latitude.toFixed(5)}, ${mapPin.longitude.toFixed(5)}` : 'Tap the map to choose a location'}</Text><Primary label="Use this map location" onPress={acceptMapPin} disabled={!mapPin}/></View>
       </SafeAreaView>
     </Modal>
+    <Modal visible={profileVisible} animationType="slide" onRequestClose={()=>setProfileVisible(false)}>
+      <SafeAreaView style={styles.profileModal}>
+        <View style={styles.mapHeader}>
+          <View style={{flex:1}}>
+            <Text style={styles.sectionTitle}>Account profile</Text>
+            <Text style={styles.sectionHint}>Private account and attendance details</Text>
+          </View>
+          <Pressable onPress={()=>setProfileVisible(false)}><Text style={styles.closeMap}>CLOSE</Text></Pressable>
+        </View>
+        {profileLoading ? <View style={styles.center}><ActivityIndicator size="large" color="#2563EB"/><Text style={styles.muted}>Loading account details…</Text></View> : selectedUser ? <ScrollView contentContainerStyle={styles.profileContent}>
+          <View style={styles.profileCard}>
+            <Text style={styles.profileName}>{selectedUser.name}</Text>
+            <Text style={styles.profileRole}>{selectedUser.role === 'admin' ? 'ADMINISTRATOR' : 'EMPLOYEE'} · {selectedUser.active ? 'ACTIVE' : 'INACTIVE'}</Text>
+            <ProfileLine label="EMAIL ADDRESS" value={selectedUser.email || 'Not provided'}/>
+            <ProfileLine label="PHONE NUMBER" value={selectedUser.phone || 'Not provided'}/>
+            <ProfileLine label="INTERNAL REFERENCE" value={selectedUser.employeeId}/>
+            <ProfileLine label="ACCOUNT CREATED" value={selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleString('en-IN') : 'Not available'}/>
+          </View>
+          <View style={styles.profileStats}>
+            <Stat label="Present days" value={selectedUser.presentDays}/>
+            <Stat label="Verified visits" value={selectedUser.totalVisits}/>
+          </View>
+          <View style={styles.profileCard}>
+            <Text style={styles.sectionTitle}>Recent shop visits</Text>
+            <Text style={styles.sectionHint}>Showing up to {selectedUser.recentVisitsLimit} most recent visits.</Text>
+            {selectedUser.recentVisits.length === 0 ? <Empty text="No verified visits recorded for this account."/> : selectedUser.recentVisits.map(visit=><View key={visit._id} style={styles.listRow}>
+              <View style={{flex:1}}>
+                <Text style={styles.rowTitle}>{visit.shop?.name || 'Registered shop'}</Text>
+                <Text style={styles.rowSub}>{visit.shop?.shopCode || '—'} · {new Date(visit.checkedInAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</Text>
+              </View>
+              <Text style={styles.distance}>{Math.round(visit.distanceMeters)} m</Text>
+            </View>)}
+          </View>
+        </ScrollView> : <Empty text="No account details available."/>}
+      </SafeAreaView>
+    </Modal>
   </SafeAreaView>;
 }
 
+function ProfileLine({label,value}:{label:string;value:string}) { return <View style={styles.profileLine}><Text style={styles.profileLabel}>{label}</Text><Text style={styles.profileValue}>{value}</Text></View>; }
 function Stat({label,value}:{label:string;value:number}) { return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>; }
 function Section({title,hint,children}:{title:string;hint:string;children:React.ReactNode}) { return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionHint}>{hint}</Text>{children}</View>; }
 function Empty({text}:{text:string}) { return <Text style={styles.empty}>{text}</Text>; }
@@ -436,5 +473,5 @@ const styles = StyleSheet.create({
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E2E8F0'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#0F172A'},sectionHint:{fontSize:10,color:'#64748B',marginTop:4,marginBottom:13},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#1E293B'},rowSub:{fontSize:9,color:'#64748B',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#EFF6FF',color:'#1D4ED8'},absent:{backgroundColor:'#F1F5F9',color:'#64748B'},distance:{fontSize:9,color:'#64748B',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#64748B',textAlign:'center',paddingVertical:20},
  rolePicker:{flexDirection:'row',gap:9,marginBottom:12},roleOption:{flex:1,borderWidth:1,borderColor:'#E2E8F0',borderRadius:11,padding:12,backgroundColor:'#FFFFFF'},roleOptionSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},roleOptionTitle:{fontSize:11,fontWeight:'900',color:'#334155'},roleOptionTitleSelected:{color:'#1D4ED8'},roleOptionHint:{fontSize:8,lineHeight:13,color:'#64748B',marginTop:5},adminAccountTag:{fontSize:8,fontWeight:'900',color:'#1D4ED8',paddingHorizontal:9,paddingVertical:6,backgroundColor:'#EFF6FF',borderRadius:10,overflow:'hidden'},field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
- locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F8FAFC'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#64748B',marginBottom:9}
+ locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F8FAFC'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#64748B',marginBottom:9},profileModal:{flex:1,backgroundColor:'#F8FAFC'},profileContent:{padding:18,paddingBottom:36,gap:12},profileCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#E2E8F0',borderRadius:14,padding:15},profileName:{color:'#0F172A',fontSize:20,fontWeight:'900',marginBottom:4},profileRole:{color:'#1D4ED8',fontSize:9,fontWeight:'900',letterSpacing:1,marginBottom:14},profileLine:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},profileLabel:{fontSize:8,fontWeight:'900',color:'#64748B',letterSpacing:.8},profileValue:{fontSize:11,fontWeight:'700',color:'#1E293B',marginTop:4},profileStats:{flexDirection:'row',gap:9}
 });
