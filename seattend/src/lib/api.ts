@@ -125,6 +125,7 @@ export const api = {
   updateUser: (token: string, id: string, data: { active: boolean }) =>
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   userDetails: (token: string, id: string) => request<{ profile: UserDetails }>(`/users/${id}/profile`, {}, token),
+  archiveUser: (token: string, id: string) => request<{ message: string }>(`/users/${id}/archive`, { method: 'POST' }, token),
   createShop: (token: string, data: { name: string; shopCode: string; address?: string; area?: string; latitude: number; longitude: number }) =>
     request<{ shop: Shop }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
   updateShop: (token: string, id: string, data: { name?: string; shopCode?: string; address?: string; area?: string; latitude?: number; longitude?: number; active?: boolean }) =>
