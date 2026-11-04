@@ -64,10 +64,11 @@ export default function AdminScreen() {
   const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' as 'employee' | 'manager', managerId: '' });
   const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
+  const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
   const load = useCallback(async (activeToken: string) => {
     const [userResult, shopResult, teamResult] = await Promise.all([
-      api.users(activeToken), api.shops(activeToken), api.teamToday(activeToken)
+      api.users(activeToken), api.shops(activeToken, true), api.teamToday(activeToken)
     ]);
     setUsers(userResult.users);
     setShops(shopResult.shops);
@@ -149,11 +150,12 @@ export default function AdminScreen() {
 
   const openMapPicker = async () => {
     setMapPin(null);
+    if (shopLocation) setMapCenter(shopLocation);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.granted && await Location.hasServicesEnabledAsync()) {
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: true });
-        setMapCenter({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setMapCenter(shopLocation || { latitude: position.coords.latitude, longitude: position.coords.longitude });
       } else setMapCenter(null);
     } catch { setMapCenter(null); }
     setMapVisible(true);
@@ -188,27 +190,81 @@ export default function AdminScreen() {
     Alert.alert('Location extracted', 'A map coordinate was found. Please verify it is the exact shop entrance before registering.');
   };
 
+  const resetShopForm = () => {
+    setShopForm({ name: '', shopCode: '', address: '', area: '' });
+    setShopLocation(null);
+    setMapsLink('');
+    setEditingShopId(null);
+  };
+
+  const startEditShop = (shop: Shop) => {
+    setEditingShopId(shop._id);
+    setShopForm({
+      name: shop.name,
+      shopCode: shop.shopCode,
+      address: shop.address || '',
+      area: shop.area || ''
+    });
+    setShopLocation(shop.location || null);
+    setMapsLink('');
+    setTab('shops');
+  };
+
   const createShop = async () => {
     if (!token) return;
     if (!shopForm.name.trim() || !shopForm.shopCode.trim()) {
       Alert.alert('Missing shop details', 'Enter a shop name and unique shop code.'); return;
     }
     if (!shopLocation) {
-      Alert.alert('Shop location required', 'Choose one of the three location options before registering this shop.'); return;
+      Alert.alert('Shop location required', 'Choose one of the three location options before saving this shop.'); return;
     }
     setSaving(true);
     try {
-      await api.createShop(token, {
+      const payload = {
         name: shopForm.name.trim(), shopCode: shopForm.shopCode.trim(),
         address: shopForm.address.trim(), area: shopForm.area.trim(),
         latitude: shopLocation.latitude, longitude: shopLocation.longitude
-      });
-      Alert.alert('Shop registered', 'The shop and its verified reference coordinates are saved.');
-      setShopForm({ name: '', shopCode: '', address: '', area: '' });
-      setShopLocation(null);
-      setMapsLink('');
+      };
+      if (editingShopId) {
+        await api.updateShop(token, editingShopId, payload);
+        Alert.alert('Shop updated', 'Shop details and its trusted GPS coordinates have been updated.');
+      } else {
+        await api.createShop(token, payload);
+        Alert.alert('Shop registered', 'The shop and its verified reference coordinates are saved.');
+      }
+      resetShopForm();
       await load(token);
-    } catch (error) { Alert.alert('Could not register shop', error instanceof Error ? error.message : 'Please try again.'); }
+    } catch (error) { Alert.alert(editingShopId ? 'Could not update shop' : 'Could not register shop', error instanceof Error ? error.message : 'Please try again.'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleShop = async (shop: Shop) => {
+    if (!token) return;
+    const nextActive = shop.active === false;
+    Alert.alert(
+      nextActive ? 'Reactivate shop?' : 'Deactivate shop?',
+      nextActive
+        ? 'This shop will become available for employee check-ins again.'
+        : 'Employees will no longer see this shop or check in to it. Existing visit history will be retained.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: nextActive ? 'Reactivate' : 'Deactivate', style: nextActive ? 'default' : 'destructive', onPress: async () => {
+          setSaving(true);
+          try { await api.updateShop(token, shop._id, { active: nextActive }); await load(token); }
+          catch (error) { Alert.alert('Shop update failed', error instanceof Error ? error.message : 'Please try again.'); }
+          finally { setSaving(false); }
+        } }
+      ]
+    );
+  };
+
+  const assignManager = async (employee: ManagedUser, managerId: string | null) => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      await api.updateUser(token, employee._id || employee.id || '', { managerId });
+      await load(token);
+    } catch (error) { Alert.alert('Assignment update failed', error instanceof Error ? error.message : 'Please try again.'); }
     finally { setSaving(false); }
   };
 
@@ -264,12 +320,27 @@ export default function AdminScreen() {
           </>}
           <Primary label={saving?'Creating…':'Create account'} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Team accounts" hint="Deactivate access or reactivate an account.">
-          {users.filter(u=>u.role!=='admin').length===0 ? <Empty text="No managers or employees yet."/> : users.filter(u=>u.role!=='admin').map(person=><View key={person._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · {person.role}</Text></View><Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable></View>)}
+        <Section title="Team accounts" hint="Manage account access and employee-to-manager assignments.">
+          {users.filter(u=>u.role!=='admin').length===0 ? <Empty text="No managers or employees yet."/> : users.filter(u=>u.role!=='admin').map(person=>{
+            const currentManagerId = typeof person.manager === 'string' ? person.manager : person.manager?._id || '';
+            return <View key={person._id} style={styles.accountCard}>
+              <View style={styles.listRow}>
+                <View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · {person.role}</Text></View>
+                <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
+              </View>
+              {person.role === 'employee' && <>
+                <Text style={styles.assignmentLabel}>ASSIGNED MANAGER</Text>
+                <View style={styles.managerChoices}>
+                  <Choice label="Unassigned" selected={!currentManagerId} onPress={()=>assignManager(person,null)}/>
+                  {managers.filter(m=>m.active).map(m=><Choice key={m._id} label={m.name} selected={currentManagerId===(m._id||m.id)} onPress={()=>assignManager(person,m._id||m.id||null)}/>)}
+                </View>
+              </>}
+            </View>;
+          })}
         </Section>
       </>}
       {tab === 'shops' && <>
-        <Section title="Register a shop" hint="Choose any one of the three ways to set its location.">
+        <Section title={editingShopId ? 'Edit shop' : 'Register a shop'} hint={editingShopId ? 'Update the shop details or adjust its trusted GPS pin.' : 'Choose any one of the three ways to set its location.'}>
           <Field label="SHOP NAME" value={shopForm.name} onChange={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name"/>
           <Field label="SHOP CODE" value={shopForm.shopCode} onChange={v=>setShopForm({...shopForm,shopCode:v})} placeholder="SHOP001" autoCapitalize="characters"/>
           <Field label="ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="Full address"/>
@@ -285,10 +356,20 @@ export default function AdminScreen() {
             {shopLocation && <Pressable onPress={()=>{setShopLocation(null);setMapsLink('');}}><Text style={styles.clearLocation}>Clear selected location</Text></Pressable>}
           </View>
           <Text style={styles.note}>Coordinates are captured automatically and sent to the server. Check-ins are verified against the registered shop pin within 50 metres.</Text>
-          <Primary label={saving?'Registering…':'Register shop'} onPress={createShop} disabled={saving}/>
+          <Primary label={saving ? (editingShopId ? 'Saving…' : 'Registering…') : (editingShopId ? 'Save shop changes' : 'Register shop')} onPress={createShop} disabled={saving}/>
+          {editingShopId && <Pressable disabled={saving} onPress={resetShopForm} style={styles.cancelEdit}><Text style={styles.cancelEditText}>Cancel editing</Text></Pressable>}
         </Section>
-        <Section title="Registered shops" hint="Active shop locations available to employees.">
-          {shops.length===0 ? <Empty text="No shops registered yet."/> : shops.map(shop=><View key={shop._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{shop.name}</Text><Text style={styles.rowSub}>{shop.shopCode} · {shop.area || shop.address || 'Address not added'}</Text></View><Text style={styles.distance}>{shop.location ? 'GPS saved' : 'Location missing'}</Text></View>)}
+        <Section title="Shop directory" hint="Edit shop details, adjust GPS coordinates or deactivate/reactivate a shop.">
+          {shops.length===0 ? <Empty text="No shops registered yet."/> : shops.map(shop=><View key={shop._id} style={styles.shopAdminCard}>
+            <View style={styles.listRow}>
+              <View style={{flex:1}}><Text style={styles.rowTitle}>{shop.name}</Text><Text style={styles.rowSub}>{shop.shopCode} · {shop.area || shop.address || 'Address not added'}</Text><Text style={styles.shopCoordinate}>{shop.location ? shop.location.latitude.toFixed(5) + ', ' + shop.location.longitude.toFixed(5) : 'GPS missing'}</Text></View>
+              <Text style={[styles.shopState,shop.active === false && styles.shopInactive]}>{shop.active === false ? 'INACTIVE' : 'ACTIVE'}</Text>
+            </View>
+            <View style={styles.shopActions}>
+              <Pressable disabled={saving} onPress={()=>startEditShop(shop)} style={styles.smallAction}><Text style={styles.smallActionText}>Edit details / GPS</Text></Pressable>
+              <Pressable disabled={saving} onPress={()=>toggleShop(shop)} style={[styles.smallAction,shop.active !== false && styles.deactivateAction]}><Text style={[styles.smallActionText,shop.active !== false && styles.deactivateText]}>{shop.active === false ? 'Reactivate' : 'Deactivate'}</Text></Pressable>
+            </View>
+          </View>)}
         </Section>
       </>}
       <Text style={styles.footer}>Admin access only. Employee location is requested only when they initiate a shop check-in.</Text>
