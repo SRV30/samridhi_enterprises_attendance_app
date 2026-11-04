@@ -364,7 +364,7 @@ export default function AdminScreen() {
           <Text style={styles.note}>Admin accounts have full administrative access, including the ability to create other admin accounts.</Text>
           <Primary label={saving?'Creating…':`Create ${userForm.role === 'admin' ? 'admin' : 'employee'} account`} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Account directory" hint="Admin accounts have full access. Employee accounts can be deactivated or reactivated.">
+        <Section title="Account directory" hint="View account profiles, deactivate employees or archive accounts.">
           {users.length===0 ? <Empty text="No accounts found."/> : users.map(person=><View key={person._id} style={styles.listRow}>
             <View style={{flex:1}}>
               <Text style={styles.rowTitle}>{person.name}</Text>
