@@ -107,21 +107,64 @@ export default function AdminScreen() {
 
   const createAccount = async () => {
     if (!token) return;
-    if (!userForm.name.trim() || !userForm.employeeId.trim() || !userForm.password) {
-      Alert.alert('Missing details', 'Name, employee ID and password are required.'); return;
+    if (!userForm.name.trim() || !userForm.email.trim() || !userForm.password) {
+      Alert.alert('Missing details', 'Name, email address and password are required.'); return;
     }
     setSaving(true);
     try {
       await api.createUser(token, {
-        name: userForm.name.trim(), employeeId: userForm.employeeId.trim(),
-        ...(userForm.email.trim() ? { email: userForm.email.trim() } : {}),
-        password: userForm.password, role: userForm.role
+        name: userForm.name.trim(),
+        email: userForm.email.trim(),
+        ...(userForm.phone.trim() ? { phone: userForm.phone.trim() } : {}),
+        password: userForm.password,
+        role: userForm.role
       });
-      Alert.alert('Account created', `${userForm.role === 'admin' ? 'Admin' : 'Employee'} account ${userForm.employeeId} created.`);
-      setUserForm({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+      Alert.alert('Account created', `${userForm.role === 'admin' ? 'Admin' : 'Employee'} account created for ${userForm.email.trim()}.`);
+      setUserForm({ name: '', email: '', phone: '', password: '', role: 'employee' });
       await load(token);
     } catch (error) { Alert.alert('Could not create account', error instanceof Error ? error.message : 'Please try again.'); }
     finally { setSaving(false); }
+  };
+
+  const viewUserDetails = async (person: ManagedUser) => {
+    if (!token) return;
+    setProfileLoading(true);
+    setProfileVisible(true);
+    try {
+      const result = await api.userDetails(token, person._id || person.id || '');
+      setSelectedUser(result.profile);
+    } catch (error) {
+      setProfileVisible(false);
+      Alert.alert('Could not load account profile', error instanceof Error ? error.message : 'Please try again.');
+    } finally { setProfileLoading(false); }
+  };
+
+  const archiveAccount = (person: ManagedUser) => {
+    if (!token) return;
+    if ((person._id || person.id) === adminId) {
+      Alert.alert('Current admin account', 'You cannot remove the admin account you are currently using.');
+      return;
+    }
+    Alert.alert(
+      'Delete account?',
+      'This account will lose sign-in access and disappear from the active account directory. Existing attendance and shop visit history will be retained for company records.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete account', style: 'destructive', onPress: async () => {
+          setSaving(true);
+          try {
+            await api.archiveUser(token, person._id || person.id || '');
+            if (selectedUser?._id === person._id) {
+              setProfileVisible(false);
+              setSelectedUser(null);
+            }
+            await load(token);
+            Alert.alert('Account deleted', 'Sign-in access has been removed. Historical attendance has been retained.');
+          } catch (error) { Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.'); }
+          finally { setSaving(false); }
+        } }
+      ]
+    );
   };
 
   const readAccurateLocation = async () => {
