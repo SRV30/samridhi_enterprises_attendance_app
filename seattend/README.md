@@ -8,7 +8,7 @@ A dedicated mobile attendance and field-visit application for Samridhi Enterpris
 - Employee dashboard with shop search, attendance status and verified visit history.
 - One-time foreground GPS capture when an employee starts a check-in.
 - Server-side distance calculation against trusted shop coordinates and a 50-metre radius.
-- Admin workspace for accounts, manager assignments and shop registration.
+- Admin workspace for accounts, manager assignments, shop registration, shop editing, GPS pin correction, and shop deactivation/reactivation.
 - Shop location capture by map pin, current location or Google Maps link.
 - Manager workspace showing only assigned employees and their daily verified shop visits.
 - Admin attendance reports with date-range filters, employee filtering, day-wise visit details and Excel-compatible CSV export.
@@ -77,7 +77,7 @@ The backend scopes the manager team endpoint to employees assigned to that manag
 ### Admin
 
 1. Create manager and employee accounts.
-2. Assign employees to managers.
+2. Assign or reassign employees to active managers, or leave them unassigned.
 3. Register shops and set their trusted GPS coordinates.
 4. Review today's attendance and visits.
 5. Open Reports to filter by date range and employee, inspect day-wise details, and share a CSV export.
