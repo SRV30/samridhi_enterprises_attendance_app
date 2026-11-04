@@ -298,7 +298,7 @@ export default function AdminScreen() {
         <View style={styles.welcome}><Text style={styles.welcomeEyebrow}>ADMINISTRATION</Text><Text style={styles.welcomeTitle}>Hello, {adminName.split(' ')[0]}.</Text><Text style={styles.welcomeText}>Manage your field team and shop attendance.</Text></View>
         <View style={styles.stats}>
           <Stat label="Employees" value={employees.filter(x=>x.active).length}/><Stat label="Managers" value={managers.filter(x=>x.active).length}/>
-          <Stat label="Shops" value={shops.length}/><Stat label="Today's visits" value={visits}/>
+          <Stat label="Active shops" value={shops.filter(shop=>shop.active !== false).length}/><Stat label="Today's visits" value={visits}/>
         </View>
         <Section title="Today's team attendance" hint="Attendance is marked by the first verified shop visit.">
           {team.length === 0 ? <Empty text="No employees have been created yet."/> : team.map(person => <View key={person._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · {person.visitCount} visits</Text></View><Text style={[styles.status, person.attendance === 'Present' ? styles.present : styles.absent]}>{person.attendance}</Text></View>)}
@@ -331,8 +331,8 @@ export default function AdminScreen() {
               {person.role === 'employee' && <>
                 <Text style={styles.assignmentLabel}>ASSIGNED MANAGER</Text>
                 <View style={styles.managerChoices}>
-                  <Choice label="Unassigned" selected={!currentManagerId} onPress={()=>assignManager(person,null)}/>
-                  {managers.filter(m=>m.active).map(m=><Choice key={m._id} label={m.name} selected={currentManagerId===(m._id||m.id)} onPress={()=>assignManager(person,m._id||m.id||null)}/>)}
+                  <Choice label="Unassigned" selected={!currentManagerId} disabled={saving} onPress={()=>assignManager(person,null)}/>
+                  {managers.filter(m=>m.active).map(m=><Choice key={m._id} label={m.name} selected={currentManagerId===(m._id||m.id)} disabled={saving} onPress={()=>assignManager(person,m._id||m.id||null)}/>)}
                 </View>
               </>}
             </View>;
@@ -389,7 +389,7 @@ function Section({title,hint,children}:{title:string;hint:string;children:React.
 function Empty({text}:{text:string}) { return <Text style={styles.empty}>{text}</Text>; }
 function Field({label,value,onChange,placeholder,secureTextEntry,keyboardType,autoCapitalize}:{label:string;value:string;onChange:(v:string)=>void;placeholder:string;secureTextEntry?:boolean;keyboardType?:'default'|'email-address'|'decimal-pad';autoCapitalize?:'none'|'sentences'|'words'|'characters'}) { return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor="#94A3B8" secureTextEntry={secureTextEntry} keyboardType={keyboardType||'default'} autoCapitalize={autoCapitalize||'none'} autoCorrect={false} style={styles.input}/></View>; }
 function Primary({label,onPress,disabled}:{label:string;onPress:()=>void;disabled:boolean}) { return <Pressable disabled={disabled} onPress={onPress} style={[styles.primary,disabled&&{opacity:.6}]}><Text style={styles.primaryText}>{label}</Text></Pressable>; }
-function Choice({label,selected,onPress}:{label:string;selected:boolean;onPress:()=>void}) { return <Pressable onPress={onPress} style={[styles.choice,selected&&styles.choiceSelected]}><Text style={[styles.choiceText,selected&&styles.choiceTextSelected]}>{label}</Text></Pressable>; }
+function Choice({label,selected,onPress,disabled}:{label:string;selected:boolean;onPress:()=>void;disabled?:boolean}) { return <Pressable disabled={disabled} onPress={onPress} style={[styles.choice,selected&&styles.choiceSelected,disabled&&{opacity:.55}]}><Text style={[styles.choiceText,selected&&styles.choiceTextSelected]}>{label}</Text></Pressable>; }
 
 const styles = StyleSheet.create({
  safe:{flex:1,backgroundColor:'#F8FAFC'},center:{flex:1,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#F8FAFC'},muted:{fontSize:12,color:'#64748B'},
