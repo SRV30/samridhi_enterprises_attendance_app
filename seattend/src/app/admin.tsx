@@ -405,16 +405,18 @@ export default function AdminScreen() {
           <Text style={styles.note}>Admin accounts have full administrative access, including the ability to create other admin accounts.</Text>
           <Primary label={saving?'Creating…':`Create ${userForm.role === 'admin' ? 'admin' : 'employee'} account`} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Account directory" hint="View account profiles, deactivate employees or archive accounts.">
+        <Section title="Account directory" hint="View profiles, deactivate employees, and permanently delete active or previously archived accounts.">
           {users.length===0 ? <Empty text="No accounts found."/> : users.map(person=><View key={person._id} style={styles.listRow}>
             <View style={{flex:1}}>
               <Text style={styles.rowTitle}>{person.name}</Text>
-              <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.active ? 'Active' : 'Inactive'}</Text>
+              <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.isDeleted ? 'Archived · awaiting permanent deletion' : person.active ? 'Active' : 'Inactive'}</Text>
             </View>
             <Pressable disabled={saving} onPress={()=>viewUserDetails(person)} style={styles.smallAction}><Text style={styles.smallActionText}>View profile</Text></Pressable>
-            {person.role === 'employee'
-              ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
-              : <Text style={styles.adminAccountTag}>ADMIN</Text>}
+            {person.isDeleted
+              ? <Text style={styles.adminAccountTag}>ARCHIVED</Text>
+              : person.role === 'employee'
+                ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
+                : <Text style={styles.adminAccountTag}>ADMIN</Text>}
             <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={permanentlyDeleteAccount.bind(null, person)} style={styles.smallAction}><Text style={[styles.smallActionText,styles.deactivateText]}>Delete permanently</Text></Pressable>
           </View>)}
         </Section>
