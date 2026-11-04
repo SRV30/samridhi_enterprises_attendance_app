@@ -71,7 +71,7 @@ router.get('/:id/profile', async (req, res, next) => {
     const [totalVisits, days, recentVisits] = await Promise.all([
       Visit.countDocuments(filter),
       Visit.distinct('attendanceDay', filter),
-      Visit.find(filter).populate('shop', 'name shopCode address area').sort({ checkedInAt: -1 }).limit(100).lean()
+      Visit.find(filter).populate('shop', 'name shopCode address area location').sort({ checkedInAt: -1 }).limit(100).lean()
     ]);
     res.setHeader('Cache-Control', 'no-store');
     res.json({ profile: { ...profile, totalVisits, presentDays: days.length, recentVisits, recentVisitsLimit: 100 } });
