@@ -47,7 +47,7 @@ async function buildReport(query) {
   if (range.employeeId) employeeFilter._id = range.employeeId;
 
   const employees = await User.find(employeeFilter)
-    .select('name employeeId active')
+    .select('name employeeId active isDeleted')
     .sort({ name: 1 })
     .lean();
   const employeeIds = employees.map(employee => employee._id);
@@ -88,6 +88,7 @@ async function buildReport(query) {
       name: employee.name,
       employeeId: employee.employeeId,
       active: employee.active,
+      isDeleted: Boolean(employee.isDeleted),
       presentDays: attendance.length,
       visitCount: attendance.reduce((total, day) => total + day.visitCount, 0),
       attendance
@@ -130,7 +131,7 @@ function toCsv(report) {
   for (const employee of report.employees) {
     rows.push([
       'Employee summary', employee.name, employee.employeeId,
-      employee.active ? 'Active' : 'Inactive', employee.presentDays,
+      employee.isDeleted ? 'Archived' : employee.active ? 'Active' : 'Inactive', employee.presentDays,
       employee.visitCount, '', '', '', '', '', ''
     ]);
     for (const day of employee.attendance) {
