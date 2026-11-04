@@ -22,7 +22,7 @@ export type Shop = {
   active?: boolean;
   verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   rejectionReason?: string;
-  createdBy?: { name?: string; email?: string; role?: 'admin' | 'employee' } | null;
+  createdBy?: { _id?: string; name?: string; email?: string; role?: 'admin' | 'employee' } | null;
   verifiedBy?: { name?: string; email?: string } | null;
   verifiedAt?: string | null;
   location?: { latitude: number; longitude: number };
