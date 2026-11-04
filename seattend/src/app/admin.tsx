@@ -344,7 +344,7 @@ export default function AdminScreen() {
         </Section>
       </>}
       {tab === 'people' && <>
-        <Section title="Create an account" hint="Create a company employee account.">
+        <Section title="Create an account" hint="Create an Admin or Employee account with a unique email address.">
           <Field label="FULL NAME" value={userForm.name} onChange={v=>setUserForm({...userForm,name:v})} placeholder="Full name"/>
           <Field label="EMPLOYEE ID" value={userForm.employeeId} onChange={v=>setUserForm({...userForm,employeeId:v})} placeholder="e.g. EMP001" autoCapitalize="characters"/>
           <Field label="EMAIL (OPTIONAL)" value={userForm.email} onChange={v=>setUserForm({...userForm,email:v})} placeholder="name@example.com" keyboardType="email-address"/>
