@@ -26,6 +26,8 @@ export default function DashboardScreen() {
       try {
         const session = await getSession();
         if (!session) { router.replace('/'); return; }
+        if (session.user.role === 'manager') { router.replace('/manager'); return; }
+        if (session.user.role === 'admin') { router.replace('/admin'); return; }
         setToken(session.token); setName(session.user.name);
         await load(session.token);
       } catch (error) {
