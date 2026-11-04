@@ -55,11 +55,10 @@ router.get('/today', allowRoles('employee'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get('/team/today', allowRoles('manager', 'admin'), async (req, res, next) => {
+router.get('/team/today', allowRoles('admin'), async (req, res, next) => {
   try {
     const day = attendanceDay();
-    const filter = req.user.role === 'manager' ? { manager: req.user.id, role: 'employee' } : { role: 'employee' };
-    const employees = await require('../models/User').find(filter).select('name employeeId active').lean();
+    const employees = await require('../models/User').find({ role: 'employee' }).select('name employeeId active').lean();
     const ids = employees.map(employee => employee._id);
     const visits = await Visit.find({ employee: { $in: ids }, attendanceDay: day }).populate('employee', 'name employeeId').populate('shop', 'name shopCode').sort({ checkedInAt: 1 }).lean();
     res.json({ date: day, employees: employees.map(employee => {
