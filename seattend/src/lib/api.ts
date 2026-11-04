@@ -25,6 +25,7 @@ export type Shop = {
   createdBy?: { _id?: string; name?: string; email?: string; role?: 'admin' | 'employee' } | null;
   verifiedBy?: { name?: string; email?: string } | null;
   verifiedAt?: string | null;
+  createdAt?: string;
   location?: { latitude: number; longitude: number };
 };
 
