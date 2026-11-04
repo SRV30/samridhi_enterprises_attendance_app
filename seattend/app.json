@@ -22,16 +22,16 @@
     },
     "web": {
       "output": "server",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/Samridhi_Enterprises_logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F8FAFC",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/Samridhi_Enterprises_logo.png",
+          "imageWidth": 190
         }
       ],
       [
