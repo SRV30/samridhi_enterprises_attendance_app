@@ -12,10 +12,19 @@ export type SessionUser = {
 export type Shop = {
   _id: string;
   name: string;
-  shopCode: string;
-  address?: string;
+  address: string;
+  pinCode: string;
+  district: string;
+  state: string;
+  mobileNumber: string;
+  shopCode?: string;
   area?: string;
   active?: boolean;
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  rejectionReason?: string;
+  createdBy?: { name?: string; email?: string; role?: 'admin' | 'employee' } | null;
+  verifiedBy?: { name?: string; email?: string } | null;
+  verifiedAt?: string | null;
   location?: { latitude: number; longitude: number };
 };
 
@@ -111,7 +120,7 @@ export const api = {
       body: JSON.stringify({ identifier, password }),
     }),
   me: (token: string) => request<SessionUser>('/auth/me', {}, token),
-  shops: (token: string, includeInactive = false) => request<{ shops: Shop[] }>(includeInactive ? '/shops?includeInactive=true' : '/shops', {}, token),
+  shops: (token: string, status?: 'PENDING' | 'VERIFIED' | 'REJECTED') => request<{ shops: Shop[] }>(status ? `/shops?status=${status}` : '/shops', {}, token),
   today: (token: string) =>
     request<{ date: string; attendance: string; visitCount: number; visits: Visit[] }>('/visits/today', {}, token),
   checkIn: (token: string, shopId: string, coords: { latitude: number; longitude: number; accuracyMeters: number }) =>
@@ -126,10 +135,12 @@ export const api = {
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   userDetails: (token: string, id: string) => request<{ profile: UserDetails }>(`/users/${id}/profile`, {}, token),
   archiveUser: (token: string, id: string) => request<{ message: string }>(`/users/${id}/archive`, { method: 'POST' }, token),
-  createShop: (token: string, data: { name: string; shopCode: string; address?: string; area?: string; latitude: number; longitude: number }) =>
-    request<{ shop: Shop }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
-  updateShop: (token: string, id: string, data: { name?: string; shopCode?: string; address?: string; area?: string; latitude?: number; longitude?: number; active?: boolean }) =>
-    request<{ shop: Shop }>(`/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  createShop: (token: string, data: { name: string; address: string; pinCode: string; district: string; state: string; mobileNumber: string; latitude: number; longitude: number }) =>
+    request<{ shop: Shop; message: string }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
+  updateShop: (token: string, id: string, data: { name?: string; address?: string; pinCode?: string; district?: string; state?: string; mobileNumber?: string; latitude?: number; longitude?: number; active?: boolean; verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED'; rejectionReason?: string }) =>
+    request<{ shop: Shop; message: string }>(`/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  deleteShop: (token: string, id: string) =>
+    request<{ message: string }>(`/shops/${id}`, { method: 'DELETE' }, token),
   teamToday: (token: string) =>
     request<{ date: string; employees: TeamEmployee[] }>('/visits/team/today', {}, token),
 
