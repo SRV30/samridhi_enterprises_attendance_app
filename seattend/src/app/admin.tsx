@@ -6,11 +6,12 @@ import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { api, AppNotification, AuditLog, ManagedUser, Shop, TeamEmployee, UserDetails } from '../lib/api';
+import IndiaAddressFields from '../components/IndiaAddressFields';
 import { clearSession, getSession } from '../lib/session';
 
 type Tab = 'overview' | 'people' | 'shops' | 'audit';
 
-const MAP_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;width:100%;margin:0;padding:0}#searchPanel{position:absolute;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:12px;box-shadow:0 2px 10px #0003;font:14px Arial}#searchRow{display:flex;gap:6px}#placeQuery{min-width:0;flex:1;border:1px solid #CBD5E1;border-radius:8px;padding:11px;font-size:14px}#searchBtn{border:0;border-radius:8px;background:#2563EB;color:#fff;padding:0 14px;font-weight:bold}#hint{font-size:11px;color:#64748B;margin-top:7px}#results{max-height:155px;overflow:auto;margin-top:5px}#results button{display:block;width:100%;text-align:left;background:white;border:0;border-top:1px solid #E2E8F0;padding:10px 5px;font-size:12px;color:#1E293B}</style></head><body><div id="map"></div><div id="searchPanel"><div id="searchRow"><input id="placeQuery" placeholder="Search shop, address or landmark" autocomplete="off"><button id="searchBtn" onclick="searchPlaces()">SEARCH</button></div><div id="hint">Search for a place, select a result, then fine-tune the pin by tapping the map.</div><div id="results"></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const map=L.map('map').setView([29.8543,77.8880],13);setTimeout(()=>map.invalidateSize(),350);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);let marker=null;function choosePoint(lat,lon,label){if(marker)map.removeLayer(marker);marker=L.marker([lat,lon]).addTo(map);map.setView([lat,lon],18);document.getElementById('hint').textContent=label||'Pin selected. Tap the exact shop entrance to adjust it.';window.ReactNativeWebView.postMessage(JSON.stringify({latitude:lat,longitude:lon}));}map.on('click',function(e){choosePoint(e.latlng.lat,e.latlng.lng,'Pin selected. Tap again to adjust the shop entrance location.');});window.addEventListener('resize',()=>map.invalidateSize());async function searchPlaces(){const q=document.getElementById('placeQuery').value.trim();const results=document.getElementById('results');if(!q){document.getElementById('hint').textContent='Enter a shop name, address or nearby landmark.';return;}results.innerHTML='';document.getElementById('hint').textContent='Searching places…';try{const response=await fetch('https://photon.komoot.io/api/?limit=6&q='+encodeURIComponent(q));if(!response.ok)throw new Error('Search service unavailable');const data=await response.json();if(!data.features||!data.features.length){document.getElementById('hint').textContent='No results found. Try a fuller address or nearby landmark.';return;}document.getElementById('hint').textContent='Select the correct result, then adjust the pin to the shop entrance.';data.features.forEach(feature=>{const p=feature.properties||{};const label=[p.name,p.street,p.city||p.locality,p.state,p.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ')||'Unnamed place';const button=document.createElement('button');button.textContent=label;button.onclick=()=>{const coords=feature.geometry.coordinates;choosePoint(coords[1],coords[0],label);results.innerHTML='';};results.appendChild(button);});}catch(e){document.getElementById('hint').textContent='Could not search right now. Check internet and try again, or tap the map manually.';}}document.getElementById('placeQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchPlaces();});</script></body></html>`;
+const MAP_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;width:100%;margin:0;padding:0}#searchPanel{position:absolute;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:12px;box-shadow:0 2px 10px #0003;font:14px Arial}#searchRow{display:flex;gap:6px}#placeQuery{min-width:0;flex:1;border:1px solid #CBD5E1;border-radius:8px;padding:11px;font-size:14px}#searchBtn{border:0;border-radius:8px;background:#2563EB;color:#fff;padding:0 14px;font-weight:bold}#hint{font-size:11px;color:#64748B;margin-top:7px}#results{max-height:155px;overflow:auto;margin-top:5px}#results button{display:block;width:100%;text-align:left;background:white;border:0;border-top:1px solid #E2E8F0;padding:10px 5px;font-size:12px;color:#1E293B}</style></head><body><div id="map"></div><div id="searchPanel"><div id="searchRow"><input id="placeQuery" placeholder="Search shop, address or landmark" autocomplete="off"><button id="searchBtn" onclick="searchPlaces()">SEARCH</button></div><div id="hint">Search for a place, select a result, then fine-tune the pin by tapping the map.</div><div id="results"></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const map=L.map('map').setView([29.8543,77.8880],13);setTimeout(()=>map.invalidateSize(),350);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);let marker=null;async function choosePoint(lat,lon,label){if(marker)map.removeLayer(marker);marker=L.marker([lat,lon]).addTo(map);map.setView([lat,lon],18);document.getElementById('hint').textContent=label||'Selected place';let placeName=label||'';try{const response=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon);if(response.ok){const data=await response.json();placeName=data.name||data.display_name||placeName;}}catch(e){}document.getElementById('hint').textContent=placeName||'Selected map location';window.ReactNativeWebView.postMessage(JSON.stringify({latitude:lat,longitude:lon,placeName}));}));}map.on('click',function(e){choosePoint(e.latlng.lat,e.latlng.lng,'Pin selected. Tap again to adjust the shop entrance location.');});window.addEventListener('resize',()=>map.invalidateSize());async function searchPlaces(){const q=document.getElementById('placeQuery').value.trim();const results=document.getElementById('results');if(!q){document.getElementById('hint').textContent='Enter a shop name, address or nearby landmark.';return;}results.innerHTML='';document.getElementById('hint').textContent='Searching places…';try{const response=await fetch('https://photon.komoot.io/api/?limit=6&q='+encodeURIComponent(q));if(!response.ok)throw new Error('Search service unavailable');const data=await response.json();if(!data.features||!data.features.length){document.getElementById('hint').textContent='No results found. Try a fuller address or nearby landmark.';return;}document.getElementById('hint').textContent='Select the correct result, then adjust the pin to the shop entrance.';data.features.forEach(feature=>{const p=feature.properties||{};const label=[p.name,p.street,p.city||p.locality,p.state,p.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ')||'Unnamed place';const button=document.createElement('button');button.textContent=label;button.onclick=()=>{const coords=feature.geometry.coordinates;choosePoint(coords[1],coords[0],label);results.innerHTML='';};results.appendChild(button);});}catch(e){document.getElementById('hint').textContent='Could not search right now. Check internet and try again, or tap the map manually.';}}document.getElementById('placeQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchPlaces();});</script></body></html>`;
 
 function validCoordinates(latitude: number, longitude: number) {
   return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
@@ -66,9 +67,9 @@ export default function AdminScreen() {
   const [mapVisible, setMapVisible] = useState(false);
   const mapWebView = useRef<WebView | null>(null);
   const [mapCenter, setMapCenter] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number; placeName: string } | null>(null);
   const [mapsLink, setMapsLink] = useState('');
-  const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number; placeName: string } | null>(null);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'employee' as 'admin' | 'employee' });
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const [profileVisible, setProfileVisible] = useState(false);
@@ -211,8 +212,12 @@ export default function AdminScreen() {
   const useCurrentLocation = async () => {
     try {
       const reading = await readAccurateLocation();
-      setShopLocation({ latitude: reading.latitude, longitude: reading.longitude });
-      Alert.alert('Location captured', 'Accuracy: about ' + Math.round(reading.accuracy) + 'm. Confirm you are standing at the shop entrance.');
+      const places = await Location.reverseGeocodeAsync({ latitude: reading.latitude, longitude: reading.longitude });
+      const place = places[0];
+      const placeName = place ? [place.name, place.street, place.district, place.city, place.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ') : '';
+      if (!placeName) throw new Error('Could not identify a readable place name. Search and select the shop on the map instead.');
+      setShopLocation({ latitude: reading.latitude, longitude: reading.longitude, placeName });
+      Alert.alert('Place identified', placeName + '. GPS accuracy: about ' + Math.round(reading.accuracy) + 'm.');
     } catch (error) { Alert.alert('Could not get accurate GPS', error instanceof Error ? error.message : 'Please try again.'); }
   };
 
@@ -234,10 +239,10 @@ export default function AdminScreen() {
   };
 
   const acceptMapPin = () => {
-    if (!mapPin) { Alert.alert('Select a point', 'Tap the map at the shop entrance to place a pin.'); return; }
+    if (!mapPin || !mapPin.placeName.trim()) { Alert.alert('Select a place', 'Choose a named place from search or tap the map and wait for its place name.'); return; }
     setShopLocation(mapPin);
     setMapVisible(false);
-    Alert.alert('Location selected', 'Map pin saved. Please confirm it is exactly at the shop entrance.');
+    Alert.alert('Place selected', mapPin.placeName);
   };
 
   const useMapsLink = async () => {
@@ -254,8 +259,14 @@ export default function AdminScreen() {
       Alert.alert('Could not extract shop pin', 'This Maps link did not expose coordinates. In Google Maps, open the exact shop place, tap Share, and copy the full link. If a shortened link cannot be resolved, use Search on Map and select the shop address, then fine-tune the pin.');
       return;
     }
-    setShopLocation(coordinates);
-    Alert.alert('Location extracted', 'A map coordinate was found. Please verify it is the exact shop entrance before registering.');
+    try {
+      const places = await Location.reverseGeocodeAsync(coordinates);
+      const place = places[0];
+      const placeName = place ? [place.name, place.street, place.district, place.city, place.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ') : '';
+      if (!placeName) throw new Error('Could not identify a readable place name.');
+      setShopLocation({ ...coordinates, placeName });
+      Alert.alert('Place identified', placeName);
+    } catch(error) { Alert.alert('Could not identify place', error instanceof Error ? error.message : 'Select the place on the map.'); }
   };
 
   const resetShopForm = () => {
@@ -275,7 +286,7 @@ export default function AdminScreen() {
       state: shop.state || 'Uttarakhand',
       mobileNumber: shop.mobileNumber || ''
     });
-    setShopLocation(shop.location || null);
+    setShopLocation(shop.location ? { ...shop.location, placeName: shop.location.placeName || '' } : null);
     setMapsLink('');
     setTab('shops');
   };
@@ -285,8 +296,8 @@ export default function AdminScreen() {
     if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\d{6}$/.test(shopForm.pinCode.trim()) || !shopForm.district.trim() || !shopForm.state.trim() || !/^\+?\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\s().-]/g, ''))) {
       Alert.alert('Missing shop details', 'Enter shop name, full address, valid 6-digit PIN code, district, state and mobile number.'); return;
     }
-    if (!shopLocation) {
-      Alert.alert('Shop location required', 'Choose one of the three location options before saving this shop.'); return;
+    if (!shopLocation || !shopLocation.placeName.trim()) {
+      Alert.alert('Shop location required', 'Choose a named place on the map or identify it with GPS before saving.'); return;
     }
     setSaving(true);
     try {
@@ -294,7 +305,7 @@ export default function AdminScreen() {
         name: shopForm.name.trim(), address: shopForm.address.trim(),
         pinCode: shopForm.pinCode.trim(), district: shopForm.district.trim(),
         state: shopForm.state.trim(), mobileNumber: shopForm.mobileNumber.trim(),
-        latitude: shopLocation.latitude, longitude: shopLocation.longitude
+        latitude: shopLocation.latitude, longitude: shopLocation.longitude, placeName: shopLocation.placeName
       };
       if (editingShopId) {
         await api.updateShop(token, editingShopId, payload);
@@ -410,15 +421,12 @@ export default function AdminScreen() {
         <Section title={editingShopId ? 'Edit shop' : 'Register a shop'} hint={editingShopId ? 'Update the shop address, contact details or trusted GPS pin.' : 'Register a shop with complete address and verified GPS coordinates.'}>
           <Field label="SHOP NAME" value={shopForm.name} onChange={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name"/>
           <Field label="FULL ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="House / building, street and locality"/>
-          <View style={styles.twoCol}>
-            <View style={{flex:1}}><Field label="PIN CODE" value={shopForm.pinCode} onChange={v=>setShopForm({...shopForm,pinCode:v.replace(/\D/g,'').slice(0,6)})} placeholder="247667" keyboardType="number-pad"/></View>
-            <View style={{flex:1}}><Field label="DISTRICT" value={shopForm.district} onChange={v=>setShopForm({...shopForm,district:v})} placeholder="Haridwar"/></View>
-          </View>
-          <Field label="STATE" value={shopForm.state} onChange={v=>setShopForm({...shopForm,state:v})} placeholder="Uttarakhand"/>
+          <Field label="PIN CODE" value={shopForm.pinCode} onChange={v=>setShopForm({...shopForm,pinCode:v.replace(/\D/g,'').slice(0,6)})} placeholder="247667" keyboardType="number-pad"/>
+          <IndiaAddressFields state={shopForm.state} district={shopForm.district} onStateChange={state=>setShopForm(current=>({...current,state}))} onDistrictChange={district=>setShopForm(current=>({...current,district}))}/>
           <Field label="SHOP MOBILE NUMBER" value={shopForm.mobileNumber} onChange={v=>setShopForm({...shopForm,mobileNumber:v})} placeholder="+91 9876543210" keyboardType="phone-pad"/>
           <View style={styles.locationBox}>
-            <Text style={styles.locationTitle}>SHOP GPS LOCATION</Text>
-            <Text style={styles.locationHint}>{shopLocation ? `Selected: ${shopLocation.latitude.toFixed(5)}, ${shopLocation.longitude.toFixed(5)}` : 'No location selected yet'}</Text>
+            <Text style={styles.locationTitle}>SHOP PLACE</Text>
+            <Text style={styles.locationHint}>{shopLocation?.placeName || 'No named place selected yet'}</Text>
             <Pressable onPress={openMapPicker} style={styles.locationButton}><Text style={styles.locationButtonText}>1. Select on map</Text></Pressable>
             <Pressable onPress={useCurrentLocation} style={styles.locationButton}><Text style={styles.locationButtonText}>2. Use current location</Text></Pressable>
             <Text style={styles.fieldLabel}>3. PASTE GOOGLE MAPS LINK</Text>
@@ -426,7 +434,7 @@ export default function AdminScreen() {
             <Pressable onPress={useMapsLink} style={styles.linkButton}><Text style={styles.linkButtonText}>Read location from link</Text></Pressable>
             {shopLocation && <Pressable onPress={()=>{setShopLocation(null);setMapsLink('');}}><Text style={styles.clearLocation}>Clear selected location</Text></Pressable>}
           </View>
-          <Text style={styles.note}>Coordinates are captured automatically and sent to the server. Check-ins are verified against the registered shop pin within 50 metres.</Text>
+          <Text style={styles.note}>The readable place name is shown here. Coordinates remain internal for 50-metre check-in verification and are never displayed.</Text>
           <Primary label={saving ? (editingShopId ? 'Saving…' : 'Registering…') : (editingShopId ? 'Save shop changes' : 'Register shop')} onPress={createShop} disabled={saving}/>
           {editingShopId && <Pressable disabled={saving} onPress={resetShopForm} style={styles.cancelEdit}><Text style={styles.cancelEditText}>Cancel editing</Text></Pressable>}
         </Section>
@@ -474,8 +482,8 @@ export default function AdminScreen() {
     <Modal visible={mapVisible} animationType="slide" onRequestClose={()=>setMapVisible(false)}>
       <SafeAreaView style={styles.mapModal}>
         <View style={styles.mapHeader}><View style={{flex:1}}><Text style={styles.sectionTitle}>Select shop on map</Text><Text style={styles.sectionHint}>Tap the exact shop entrance to place a pin.</Text></View><Pressable onPress={()=>setMapVisible(false)}><Text style={styles.closeMap}>CLOSE</Text></Pressable></View>
-        <WebView ref={mapWebView} originWhitelist={['*']} source={{html:MAP_HTML}} javaScriptEnabled domStorageEnabled onLoadEnd={onMapLoaded} onError={()=>Alert.alert('Map loading failed','Check your internet connection and try again.')} onMessage={(event:WebViewMessageEvent)=>{try{const point=JSON.parse(event.nativeEvent.data);if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude))setMapPin(point);}catch{}}}/>
-        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin ? `Pin: ${mapPin.latitude.toFixed(5)}, ${mapPin.longitude.toFixed(5)}` : 'Tap the map to choose a location'}</Text><Primary label="Use this map location" onPress={acceptMapPin} disabled={!mapPin}/></View>
+        <WebView ref={mapWebView} originWhitelist={['*']} source={{html:MAP_HTML}} javaScriptEnabled domStorageEnabled onLoadEnd={onMapLoaded} onError={()=>Alert.alert('Map loading failed','Check your internet connection and try again.')} onMessage={(event:WebViewMessageEvent)=>{try{const point=JSON.parse(event.nativeEvent.data);if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude))setMapPin({latitude:point.latitude,longitude:point.longitude,placeName:String(point.placeName||'')});}catch{}}}/>
+        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin?.placeName || 'Tap the map or select a search result to identify a place'}</Text><Primary label="Use this map location" onPress={acceptMapPin} disabled={!mapPin}/></View>
       </SafeAreaView>
     </Modal>
     <Modal visible={profileVisible} animationType="slide" onRequestClose={()=>setProfileVisible(false)}>
