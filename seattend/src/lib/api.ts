@@ -181,7 +181,7 @@ export const api = {
   updateUser: (token: string, id: string, data: { active: boolean }) =>
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   userDetails: (token: string, id: string) => request<{ profile: UserDetails }>(`/users/${id}/profile`, {}, token),
-  archiveUser: (token: string, id: string) => request<{ message: string }>(`/users/${id}/archive`, { method: 'POST' }, token),
+  deleteUser: (token: string, id: string) => request<{ message: string }>(`/users/${id}`, { method: 'DELETE' }, token),
   createShop: (token: string, data: { name: string; address: string; pinCode: string; district: string; state: string; mobileNumber: string; latitude: number; longitude: number; placeName: string }) =>
     request<{ shop: Shop; message: string }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
   updateShop: (token: string, id: string, data: { name?: string; address?: string; pinCode?: string; district?: string; state?: string; mobileNumber?: string; latitude?: number; longitude?: number; placeName?: string; active?: boolean; verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED'; rejectionReason?: string }) =>
