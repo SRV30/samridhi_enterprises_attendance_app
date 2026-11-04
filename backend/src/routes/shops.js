@@ -79,7 +79,7 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
       return res.status(400).json({ message: 'Provide valid shop fields to update' });
     }
 
-    const shop = await Shop.findById(req.params.id);
+    const shop = await Shop.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!shop) return res.status(404).json({ message: 'Shop not found' });
 
     for (const key of ['name', 'address', 'district', 'state']) {
