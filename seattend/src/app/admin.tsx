@@ -337,7 +337,7 @@ export default function AdminScreen() {
         <View style={styles.welcome}><Text style={styles.welcomeEyebrow}>ADMINISTRATION</Text><Text style={styles.welcomeTitle}>Hello, {adminName.split(' ')[0]}.</Text><Text style={styles.welcomeText}>Manage your field team and shop attendance.</Text></View>
         <View style={styles.stats}>
           <Stat label="Employees" value={employees.filter(x=>x.active).length}/><Stat label="Inactive staff" value={employees.filter(x=>!x.active).length}/>
-          <Stat label="Active shops" value={shops.filter(shop=>shop.active !== false).length}/><Stat label="Today's visits" value={visits}/>
+          <Stat label="Active shops" value={shops.filter(shop=>shop.active !== false && shop.verificationStatus === 'VERIFIED').length}/><Stat label="Pending approvals" value={shops.filter(shop=>shop.verificationStatus === 'PENDING').length}/><Stat label="Today's visits" value={visits}/>
         </View>
         <Section title="Today's team attendance" hint="Attendance is marked by the first verified shop visit.">
           {team.length === 0 ? <Empty text="No employees have been created yet."/> : team.map(person => <View key={person._id} style={styles.listRow}><View style={{flex:1}}><Pressable disabled={saving} onPress={()=>viewUserDetails(person)}><Text style={styles.rowTitle}>{person.name}</Text></Pressable><Text style={styles.rowSub}>{person.employeeId} · {person.visitCount} visits</Text></View><Text style={[styles.status, person.attendance === 'Present' ? styles.present : styles.absent]}>{person.attendance}</Text></View>)}
@@ -412,6 +412,7 @@ export default function AdminScreen() {
                 <Text style={styles.rowTitle}>{shop.name}</Text>
                 <Text style={styles.rowSub}>{shop.address || 'Address not available'} · {[shop.district, shop.state].filter(Boolean).join(', ') || 'Location details pending'} {shop.pinCode ? '- ' + shop.pinCode : ''}</Text>
                 <Text style={styles.rowSub}>Mobile: {shop.mobileNumber || 'Not available'} · Submitted by: {shop.createdBy?.name || 'Legacy / Admin'}</Text>
+                {shop.verificationStatus === 'REJECTED' && <Text style={styles.rejectionReason}>Rejection reason: {shop.rejectionReason || 'Details require correction'}</Text>}
                 <Text style={styles.shopCoordinate}>{shop.location ? shop.location.latitude.toFixed(5) + ', ' + shop.location.longitude.toFixed(5) : 'GPS missing'}</Text>
               </View>
               <Text style={[styles.shopState, shop.verificationStatus === 'VERIFIED' ? styles.shopVerified : shop.verificationStatus === 'REJECTED' ? styles.shopRejected : styles.shopPending]}>{shop.verificationStatus || 'VERIFIED'}</Text>
