@@ -59,6 +59,37 @@ router.get('/today', allowRoles('employee'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.get('/history', allowRoles('employee'), async (req, res, next) => {
+  try {
+    const { from, to } = req.query;
+    const validDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(new Date(value + 'T00:00:00.000Z').getTime()) &&
+      new Date(value + 'T00:00:00.000Z').toISOString().slice(0, 10) === value;
+    if (!validDay(from) || !validDay(to) || from > to) {
+      return res.status(400).json({ message: 'Provide a valid date range in YYYY-MM-DD format' });
+    }
+    const days = Math.floor((new Date(to + 'T00:00:00Z') - new Date(from + 'T00:00:00Z')) / 86400000) + 1;
+    if (days > 62) return res.status(400).json({ message: 'Choose a period of 62 days or less' });
+    const visits = await Visit.find({
+      employee: req.user.id,
+      attendanceDay: { $gte: from, $lte: to }
+    }).populate('shop', 'name address district state pinCode')
+      .sort({ attendanceDay: 1, checkedInAt: 1 }).lean();
+    const byDay = {};
+    for (const visit of visits) {
+      if (!byDay[visit.attendanceDay]) byDay[visit.attendanceDay] = [];
+      byDay[visit.attendanceDay].push(visit);
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      from, to,
+      presentDays: Object.keys(byDay).length,
+      visitCount: visits.length,
+      days: Object.entries(byDay).map(([date, dayVisits]) => ({ date, visitCount: dayVisits.length, visits: dayVisits }))
+    });
+  } catch (error) { next(error); }
+});
+
 router.get('/team/today', allowRoles('admin'), async (req, res, next) => {
   try {
     const day = attendanceDay();
