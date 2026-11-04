@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Shop = require('../models/Shop');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { writeAuditLog } = require('../utils/audit');
 const { authenticate, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -75,6 +76,7 @@ router.post('/', allowRoles('admin', 'employee'), async (req, res, next) => {
         })));
       }
     }
+    await writeAuditLog(req, { action: isAdmin ? 'SHOP_CREATED' : 'SHOP_SUBMITTED', entityType: 'shop', entityId: shop.id, entityLabel: shop.name, details: { verificationStatus: shop.verificationStatus } });
     res.status(201).json({
       message: isAdmin ? 'Shop registered and verified' : 'Shop submitted for admin verification',
       shop
@@ -136,6 +138,8 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
     if (body.rejectionReason !== undefined) shop.rejectionReason = cleanText(body.rejectionReason);
 
     await shop.save();
+    const changedFields = Object.keys(body).filter(key => key !== 'rejectionReason');
+    await writeAuditLog(req, { action: previousStatus !== shop.verificationStatus ? (shop.verificationStatus === 'VERIFIED' ? 'SHOP_APPROVED' : shop.verificationStatus === 'REJECTED' ? 'SHOP_REJECTED' : 'SHOP_UPDATED') : 'SHOP_UPDATED', entityType: 'shop', entityId: shop.id, entityLabel: shop.name, details: { changedFields, verificationStatus: shop.verificationStatus, ...(shop.verificationStatus === 'REJECTED' ? { rejectionReason: shop.rejectionReason } : {}) } });
     if (previousStatus !== shop.verificationStatus && ['VERIFIED', 'REJECTED'].includes(shop.verificationStatus) && shop.createdBy) {
       const approved = shop.verificationStatus === 'VERIFIED';
       await Notification.create({
@@ -158,6 +162,7 @@ router.delete('/:id', allowRoles('admin'), async (req, res, next) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid shop ID' });
     const shop = await Shop.findOneAndUpdate({ _id: req.params.id, isDeleted: { $ne: true } }, { $set: { isDeleted: true, active: false } }, { new: true });
     if (!shop) return res.status(404).json({ message: 'Shop not found' });
+    await writeAuditLog(req, { action: 'SHOP_DELETED', entityType: 'shop', entityId: shop.id, entityLabel: shop.name });
     res.json({ message: 'Shop removed from the directory. Historical visits are preserved.' });
   } catch (error) { next(error); }
 });
