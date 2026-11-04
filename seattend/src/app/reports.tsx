@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { api, AttendanceReport } from '../lib/api';
+import CalendarDatePicker from '../components/CalendarDatePicker';
 import { clearSession, getSession } from '../lib/session';
 
 function kolkataDate() {
@@ -73,7 +74,7 @@ export default function ReportsScreen() {
   const runReport = async (employeeId = selectedEmployeeId) => {
     if (!token) return;
     if (!validDate(from) || !validDate(to)) {
-      Alert.alert('Invalid dates', 'Enter both dates in YYYY-MM-DD format.');
+      Alert.alert('Invalid dates', 'Select both dates using the calendar.');
       return;
     }
     if (from > to) {
@@ -162,14 +163,8 @@ export default function ReportsScreen() {
         <View style={styles.filterCard}>
           <Text style={styles.cardTitle}>Report period</Text>
           <View style={styles.dateFields}>
-            <View style={styles.dateField}>
-              <Text style={styles.label}>FROM · YYYY-MM-DD</Text>
-              <TextInput value={from} onChangeText={setFrom} placeholder="2026-11-01" placeholderTextColor="#94A3B8" maxLength={10} autoCapitalize="none" style={styles.input}/>
-            </View>
-            <View style={styles.dateField}>
-              <Text style={styles.label}>TO · YYYY-MM-DD</Text>
-              <TextInput value={to} onChangeText={setTo} placeholder={today} placeholderTextColor="#94A3B8" maxLength={10} autoCapitalize="none" style={styles.input}/>
-            </View>
+            <CalendarDatePicker label="FROM DATE" value={from} onChange={setFrom} mode="date" maxDate={to}/>
+            <CalendarDatePicker label="TO DATE" value={to} onChange={setTo} mode="date" minDate={from} maxDate={today}/>
           </View>
           <Text style={styles.helper}>Maximum range: 92 days. The monthly report opens by default.</Text>
           <Pressable disabled={loading} onPress={() => runReport()} style={[styles.primaryButton, loading && styles.disabled]}>
