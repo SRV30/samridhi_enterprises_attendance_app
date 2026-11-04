@@ -39,6 +39,13 @@ export type AppNotification = {
   shop?: Shop | null;
 };
 
+export type TodayResponse = {
+  date: string;
+  attendance: string;
+  visitCount: number;
+  visits: Visit[];
+};
+
 export type Visit = {
   _id: string;
   checkedInAt: string;
@@ -136,7 +143,7 @@ export const api = {
   markNotificationRead: (token: string, id: string) => request<{ message: string }>(`/notifications/${id}/read`, { method: 'PATCH' }, token),
   markAllNotificationsRead: (token: string) => request<{ message: string }>('/notifications/read-all', { method: 'PATCH' }, token),
   today: (token: string) =>
-    request<{ date: string; attendance: string; visitCount: number; visits: Visit[] }>('/visits/today', {}, token),
+    request<TodayResponse>('/visits/today', {}, token),
   checkIn: (token: string, shopId: string, coords: { latitude: number; longitude: number; accuracyMeters: number }) =>
     request<{ message: string; alreadyVisited: boolean; visit: Visit }>('/visits/check-in', {
       method: 'POST',
