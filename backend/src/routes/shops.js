@@ -16,12 +16,12 @@ function validMobile(value) {
   return typeof value === 'string' && /^\+?\d{7,15}$/.test(value.trim().replace(/[\s().-]/g, ''));
 }
 function validateShop(body) {
-  const { name, address, pinCode, district, state, mobileNumber, latitude, longitude } = body;
+  const { name, address, pinCode, district, state, mobileNumber, latitude, longitude, placeName } = body;
   if (!cleanText(name) || !cleanText(address) || !/^\d{6}$/.test(String(pinCode || '').trim()) ||
-      !cleanText(district) || !cleanText(state) || !validMobile(mobileNumber) ||
+      !cleanText(district) || !cleanText(state) || !cleanText(placeName) || !validMobile(mobileNumber) ||
       !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
       latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-    return 'Name, address, 6-digit PIN code, district, state, valid mobile number and GPS coordinates are required';
+    return 'Name, address, 6-digit PIN code, district, state, valid mobile number, named place and map location are required';
   }
   return null;
 }
@@ -58,7 +58,7 @@ router.post('/', allowRoles('admin', 'employee'), async (req, res, next) => {
       district: cleanText(body.district),
       state: cleanText(body.state),
       mobileNumber: body.mobileNumber.trim().replace(/[\s().-]/g, ''),
-      location: { latitude: body.latitude, longitude: body.longitude },
+      location: { latitude: body.latitude, longitude: body.longitude, placeName: cleanText(body.placeName) },
       createdBy: req.user._id,
       verificationStatus: isAdmin ? 'VERIFIED' : 'PENDING',
       verifiedBy: isAdmin ? req.user._id : null,
@@ -88,7 +88,7 @@ router.post('/', allowRoles('admin', 'employee'), async (req, res, next) => {
 router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid shop ID' });
-    const allowed = ['name', 'address', 'pinCode', 'district', 'state', 'mobileNumber', 'active', 'latitude', 'longitude', 'verificationStatus', 'rejectionReason'];
+    const allowed = ['name', 'address', 'pinCode', 'district', 'state', 'mobileNumber', 'active', 'latitude', 'longitude', 'placeName', 'verificationStatus', 'rejectionReason'];
     const body = req.body || {};
     const keys = Object.keys(body);
     if (!keys.length || keys.some(key => !allowed.includes(key))) {
@@ -111,6 +111,10 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
     if (body.mobileNumber !== undefined) {
       if (!validMobile(body.mobileNumber)) return res.status(400).json({ message: 'Enter a valid mobile number' });
       shop.mobileNumber = body.mobileNumber.trim().replace(/[\s().-]/g, '');
+    }
+    if (body.placeName !== undefined) {
+      if (typeof body.placeName !== 'string' || !body.placeName.trim()) return res.status(400).json({ message: 'A readable shop place name is required' });
+      shop.location.placeName = body.placeName.trim();
     }
     if (body.active !== undefined) {
       if (typeof body.active !== 'boolean') return res.status(400).json({ message: 'active must be a boolean' });
