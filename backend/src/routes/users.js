@@ -7,105 +7,73 @@ const { authenticate, allowRoles } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate, allowRoles('admin'));
 
-// Admin creates manager and employee accounts. Passwords are never returned.
+// Admin creates employee accounts. The only account roles are admin and employee.
 router.post('/', async (req, res, next) => {
   try {
-    const { name, employeeId, email, password, role = 'employee', managerId = null } = req.body || {};
-    if (!name || !employeeId || typeof password !== 'string' || !password ||
-        !['manager', 'employee'].includes(role)) {
-      return res.status(400).json({ message: 'Name, employeeId, password and a valid role (manager or employee) are required' });
+    const { name, employeeId, email, password } = req.body || {};
+    if (typeof name !== 'string' || !name.trim() ||
+        typeof employeeId !== 'string' || !employeeId.trim() ||
+        typeof password !== 'string' || !password) {
+      return res.status(400).json({ message: 'Name, employeeId and password are required' });
     }
     if (Buffer.byteLength(password, 'utf8') > 72) {
       return res.status(400).json({ message: 'Password must not exceed 72 bytes' });
     }
 
-    let manager = null;
-    if (managerId) {
-      if (role !== 'employee' || !mongoose.isValidObjectId(managerId)) {
-        return res.status(400).json({ message: 'Only employees can be assigned to a valid manager' });
-      }
-      manager = await User.findOne({ _id: managerId, role: 'manager', active: true });
-      if (!manager) return res.status(400).json({ message: 'Active manager not found' });
-    }
-
-    const normalizedId = String(employeeId).trim().toUpperCase();
+    const normalizedId = employeeId.trim().toUpperCase();
     const normalizedEmail = email ? String(email).trim().toLowerCase() : undefined;
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({
-      name: String(name).trim(),
+      name: name.trim(),
       employeeId: normalizedId,
       ...(normalizedEmail ? { email: normalizedEmail } : {}),
       passwordHash,
-      role,
-      manager: manager ? manager._id : null
+      role: 'employee'
     });
 
     return res.status(201).json({
       user: {
         id: user.id, name: user.name, employeeId: user.employeeId,
-        email: user.email || null, role: user.role, manager: user.manager,
-        active: user.active
+        email: user.email || null, role: user.role, active: user.active
       }
     });
   } catch (error) { next(error); }
 });
 
-// List accounts without password hashes; optionally filter by role.
-router.get('/', async (req, res, next) => {
+// List accounts without password hashes.
+router.get('/', async (_req, res, next) => {
   try {
-    const filter = {};
-    if (req.query.role) {
-      if (!['admin', 'manager', 'employee'].includes(req.query.role)) {
-        return res.status(400).json({ message: 'Invalid role filter' });
-      }
-      filter.role = req.query.role;
-    }
-    const users = await User.find(filter)
-      .select('name employeeId email role manager active createdAt')
-      .populate('manager', 'name employeeId')
+    const users = await User.find({})
+      .select('name employeeId email role active createdAt')
       .sort({ role: 1, name: 1 })
       .lean();
+    res.setHeader('Cache-Control', 'no-store');
     res.json({ users });
   } catch (error) { next(error); }
 });
 
-// Update employee manager assignment or deactivate/reactivate an account.
+// Admin can only deactivate or reactivate employee accounts.
 router.patch('/:id', async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
-    const allowed = ['active', 'managerId'];
-    if (!Object.keys(req.body || {}).some(key => allowed.includes(key)) ||
-        Object.keys(req.body || {}).some(key => !allowed.includes(key))) {
-      return res.status(400).json({ message: 'Only active and managerId can be updated' });
+    const body = req.body || {};
+    if (Object.keys(body).length !== 1 || !Object.prototype.hasOwnProperty.call(body, 'active') ||
+        typeof body.active !== 'boolean') {
+      return res.status(400).json({ message: 'Only an active boolean can be updated' });
     }
 
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.role === 'admin') return res.status(403).json({ message: 'Admin accounts cannot be changed through this endpoint' });
+    if (user.role !== 'employee') return res.status(403).json({ message: 'Only employee accounts can be changed here' });
 
-    if (req.body.active !== undefined) {
-      if (typeof req.body.active !== 'boolean') return res.status(400).json({ message: 'active must be a boolean' });
-      user.active = req.body.active;
-    }
-    if (req.body.managerId !== undefined) {
-      if (user.role !== 'employee') return res.status(400).json({ message: 'Only employees can be assigned to a manager' });
-      if (req.body.managerId === null || req.body.managerId === '') {
-        user.manager = null;
-      } else {
-        if (!mongoose.isValidObjectId(req.body.managerId)) return res.status(400).json({ message: 'Invalid manager ID' });
-        const manager = await User.findOne({ _id: req.body.managerId, role: 'manager', active: true });
-        if (!manager) return res.status(400).json({ message: 'Active manager not found' });
-        user.manager = manager._id;
-      }
-    }
+    user.active = body.active;
     await user.save();
     res.json({
       user: {
         id: user.id, name: user.name, employeeId: user.employeeId,
-        email: user.email || null, role: user.role, manager: user.manager,
-        active: user.active
+        email: user.email || null, role: user.role, active: user.active
       }
     });
   } catch (error) { next(error); }
