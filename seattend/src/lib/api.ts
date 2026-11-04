@@ -29,6 +29,18 @@ export type Shop = {
   location?: { latitude: number; longitude: number };
 };
 
+export type EmployeeAttendanceHistory = {
+  from: string;
+  to: string;
+  presentDays: number;
+  visitCount: number;
+  days: Array<{
+    date: string;
+    visitCount: number;
+    visits: Visit[];
+  }>;
+};
+
 export type AppNotification = {
   _id: string;
   title: string;
@@ -154,6 +166,8 @@ export const api = {
   notifications: (token: string) => request<{ notifications: AppNotification[]; unreadCount: number }>('/notifications', {}, token),
   markNotificationRead: (token: string, id: string) => request<{ message: string }>(`/notifications/${id}/read`, { method: 'PATCH' }, token),
   markAllNotificationsRead: (token: string) => request<{ message: string }>('/notifications/read-all', { method: 'PATCH' }, token),
+  attendanceHistory: (token: string, from: string, to: string) =>
+    request<EmployeeAttendanceHistory>(`/visits/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {}, token),
   today: (token: string) =>
     request<TodayResponse>('/visits/today', {}, token),
   checkIn: (token: string, shopId: string, coords: { latitude: number; longitude: number; accuracyMeters: number }) =>
