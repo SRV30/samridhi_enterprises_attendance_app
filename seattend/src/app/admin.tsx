@@ -347,7 +347,7 @@ export default function AdminScreen() {
         <Section title="Create an account" hint="Create an Admin or Employee account with a unique email address.">
           <Field label="FULL NAME" value={userForm.name} onChange={v=>setUserForm({...userForm,name:v})} placeholder="Full name"/>
           
-          <Field label="EMAIL ADDRESS" value={userForm.email} onChange={v=>setUserForm({...userForm,email:v})} placeholder="name@example.com" keyboardType="email-address"/>
+          <Field label="EMAIL ADDRESS (REQUIRED)" value={userForm.email} onChange={v=>setUserForm({...userForm,email:v})} placeholder="name@example.com" keyboardType="email-address"/>
           <Field label="PHONE NUMBER (OPTIONAL)" value={userForm.phone} onChange={v=>setUserForm({...userForm,phone:v})} placeholder="+91 9876543210" keyboardType="phone-pad"/>
           <Field label="TEMPORARY PASSWORD" value={userForm.password} onChange={v=>setUserForm({...userForm,password:v})} placeholder="Set initial password" secureTextEntry/>
           <Text style={styles.fieldLabel}>ACCOUNT ROLE</Text>
