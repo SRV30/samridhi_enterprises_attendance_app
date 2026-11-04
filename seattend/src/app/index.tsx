@@ -7,7 +7,7 @@ import { api, apiConfigured } from '../lib/api';
 import { saveSession } from '../lib/session';
 
 export default function LoginScreen() {
-  const [employeeId, setEmployeeId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
