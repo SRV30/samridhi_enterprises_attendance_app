@@ -1,6 +1,7 @@
 const express = require('express');
 const Shop = require('../models/Shop');
 const Visit = require('../models/Visit');
+const { writeAuditLog } = require('../utils/audit');
 const { authenticate, allowRoles } = require('../middleware/auth');
 const { attendanceDay, distanceMeters } = require('../utils/attendance');
 
@@ -36,6 +37,7 @@ router.post('/check-in', allowRoles('employee'), async (req, res, next) => {
         reportedLocation: { latitude, longitude, accuracyMeters },
         distanceMeters: Math.round(distance * 100) / 100
       });
+      await writeAuditLog(req, { action: 'VISIT_CHECKED_IN', entityType: 'visit', entityId: visit.id, entityLabel: shop.name, details: { shopId: shop.id, shopName: shop.name, attendanceDay: day, distanceMeters: visit.distanceMeters, accuracyMeters } });
       return res.status(201).json({ message: 'Shop visit verified', alreadyVisited: false, visit });
     } catch (error) {
       if (error.code === 11000) {
