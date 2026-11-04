@@ -4,7 +4,7 @@ export type SessionUser = {
   id: string;
   name: string;
   employeeId: string;
-  role: 'admin' | 'manager' | 'employee';
+  role: 'admin' | 'employee';
 };
 
 export type Shop = {
@@ -31,8 +31,7 @@ export type ManagedUser = {
   name: string;
   employeeId: string;
   email?: string;
-  role: 'admin' | 'manager' | 'employee';
-  manager?: { _id: string; name: string; employeeId: string } | string | null;
+  role: 'admin' | 'employee';
   active: boolean;
 };
 
@@ -116,9 +115,9 @@ export const api = {
       body: JSON.stringify({ shopId, ...coords }),
     }, token),
   users: (token: string) => request<{ users: ManagedUser[] }>('/users', {}, token),
-  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string; role: 'manager' | 'employee'; managerId?: string }) =>
+  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string }) =>
     request<{ user: ManagedUser }>('/users', { method: 'POST', body: JSON.stringify(data) }, token),
-  updateUser: (token: string, id: string, data: { active?: boolean; managerId?: string | null }) =>
+  updateUser: (token: string, id: string, data: { active: boolean }) =>
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   createShop: (token: string, data: { name: string; shopCode: string; address?: string; area?: string; latitude: number; longitude: number }) =>
     request<{ shop: Shop }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
