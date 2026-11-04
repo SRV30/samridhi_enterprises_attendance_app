@@ -50,9 +50,9 @@ export default function DashboardScreen() {
 
   const registerShop = async () => {
     if (!token || registering) return;
-    if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\\d{6}$/.test(shopForm.pinCode.trim()) ||
+    if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\d{6}$/.test(shopForm.pinCode.trim()) ||
         !shopForm.district.trim() || !shopForm.state.trim() ||
-        !/^\\+?\\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\\s().-]/g,''))) {
+        !/^\+?\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\s().-]/g,''))) {
       Alert.alert('Check shop details','Enter the shop name, full address, valid 6-digit PIN code, district, state and mobile number.');
       return;
     }
@@ -98,7 +98,7 @@ export default function DashboardScreen() {
       <TextInput value={shopForm.name} onChangeText={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name" placeholderTextColor="#94A3B8" style={styles.search}/>
       <TextInput value={shopForm.address} onChangeText={v=>setShopForm({...shopForm,address:v})} placeholder="Full address" placeholderTextColor="#94A3B8" style={styles.search}/>
       <View style={styles.formRow}>
-        <TextInput value={shopForm.pinCode} onChangeText={v=>setShopForm({...shopForm,pinCode:v.replace(/\\D/g,'').slice(0,6)})} placeholder="PIN code" keyboardType="number-pad" placeholderTextColor="#94A3B8" style={[styles.search,{flex:1}]}/>
+        <TextInput value={shopForm.pinCode} onChangeText={v=>setShopForm({...shopForm,pinCode:v.replace(/\D/g,'').slice(0,6)})} placeholder="PIN code" keyboardType="number-pad" placeholderTextColor="#94A3B8" style={[styles.search,{flex:1}]}/>
         <TextInput value={shopForm.district} onChangeText={v=>setShopForm({...shopForm,district:v})} placeholder="District" placeholderTextColor="#94A3B8" style={[styles.search,{flex:1}]}/>
       </View>
       <TextInput value={shopForm.state} onChangeText={v=>setShopForm({...shopForm,state:v})} placeholder="State" placeholderTextColor="#94A3B8" style={styles.search}/>
