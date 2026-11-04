@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const shopSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   address: { type: String, required: true, trim: true },
-  pinCode: { type: String, required: true, match: /^\\d{6}$/ },
+  pinCode: { type: String, required: true, match: /^\d{6}$/ },
   district: { type: String, required: true, trim: true },
   state: { type: String, required: true, trim: true },
-  mobileNumber: { type: String, required: true, trim: true, match: /^\\+?\\d{7,15}$/ },
+  mobileNumber: { type: String, required: true, trim: true, match: /^\+?\d{7,15}$/ },
   location: {
     latitude: { type: Number, required: true, min: -90, max: 90 },
     longitude: { type: Number, required: true, min: -180, max: 180 }
