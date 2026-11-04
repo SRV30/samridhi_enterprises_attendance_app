@@ -13,7 +13,10 @@ There are no manager accounts, manager dashboards or employee-manager assignment
 
 ## Current capabilities
 
-- Role-based sign-in for Admin and Employee accounts.
+- Role-based sign-in for Admin and Employee accounts using email addresses for new accounts.
+- Admin account creation with required email, optional phone number and server-generated internal ID.
+- Admin profile viewer with contact details, attendance totals and up to 100 recent verified shop visits.
+- Account archiving that revokes sign-in and hides the account from the active directory while retaining its attendance history.
 - Employee dashboard with shop search, attendance status and verified visit history.
 - One-time foreground GPS capture when an employee starts a check-in.
 - Server-side distance calculation against trusted shop coordinates and a 50-metre radius.
@@ -67,7 +70,7 @@ npx expo start --tunnel
 
 ### Employee
 
-1. Sign in with the company-issued Employee ID and password.
+1. Sign in with the registered email address and password. Existing legacy accounts without an email can use their previous internal ID during transition.
 2. Search any active registered shop.
 3. Start check-in while physically at the shop.
 4. Allow foreground location access for that check-in only.
@@ -76,11 +79,13 @@ npx expo start --tunnel
 
 ### Admin
 
-1. Create Admin or Employee accounts and manage employee account access.
-2. Register shops and set their trusted GPS coordinates.
-3. Edit shop details and coordinates, or deactivate/reactivate a shop without deleting its visit history.
-4. Review all employees' daily attendance and verified visits.
-5. Open Reports to filter by date range and employee, inspect day-wise details, and share a CSV export.
+1. Create Admin or Employee accounts with a required email address and optional phone number. Internal IDs are generated automatically.
+2. Open an account profile to view contact details, attendance totals and recent visits.
+3. Archive an account to revoke access while retaining historical attendance. The currently signed-in Admin and the last active Admin are protected.
+4. Register shops and set their trusted GPS coordinates.
+5. Edit shop details and coordinates, or deactivate/reactivate a shop without deleting its visit history.
+6. Review all employees' daily attendance and verified visits.
+7. Open Reports to filter by date range and employee, inspect day-wise details, and share a CSV export.
 
 ## Privacy and security
 
