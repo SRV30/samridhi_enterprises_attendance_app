@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "seattend",
-    "slug": "seattend",
+    "name": "Samridhi Sales Attendance",
+    "slug": "samridhi-sales-attendance",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "seattend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "samridhiattendance",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.samridhienterprises.attendance",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -28,7 +29,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F5F7FA",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
