@@ -88,6 +88,7 @@ export default function ReportsScreen() {
     setLoading(true);
     try {
       const result = await api.attendanceReport(token, from, to, employeeId || undefined);
+      setSelectedEmployeeId(employeeId);
       setReport(result);
       setExpandedEmployee('');
     } catch (error) {
@@ -98,7 +99,6 @@ export default function ReportsScreen() {
   };
 
   const chooseEmployee = async (employeeId: string) => {
-    setSelectedEmployeeId(employeeId);
     await runReport(employeeId);
   };
 
