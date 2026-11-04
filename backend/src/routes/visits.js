@@ -73,7 +73,7 @@ router.get('/history', allowRoles('employee'), async (req, res, next) => {
     const visits = await Visit.find({
       employee: req.user.id,
       attendanceDay: { $gte: from, $lte: to }
-    }).populate('shop', 'name address district state pinCode')
+    }).populate('shop', 'name address district state pinCode location')
       .sort({ attendanceDay: 1, checkedInAt: 1 }).lean();
     const byDay = {};
     for (const visit of visits) {
@@ -97,7 +97,7 @@ router.get('/team/today', allowRoles('admin'), async (req, res, next) => {
     const ids = employees.map(employee => employee._id);
     const visits = await Visit.find({ employee: { $in: ids }, attendanceDay: day })
       .populate('employee', 'name employeeId email phone')
-      .populate('shop', 'name address pinCode district state')
+      .populate('shop', 'name address pinCode district state location')
       .sort({ checkedInAt: 1 }).lean();
     res.json({ date: day, employees: employees.map(employee => {
       const ownVisits = visits.filter(visit => String(visit.employee._id) === String(employee._id));
