@@ -1,12 +1,47 @@
 import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { api, ManagedUser, Shop, TeamEmployee } from '../lib/api';
 import { clearSession, getSession } from '../lib/session';
 
 type Tab = 'overview' | 'people' | 'shops';
+
+const MAP_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;width:100%;margin:0;padding:0} .hint{position:absolute;z-index:1000;top:12px;left:12px;right:12px;background:white;padding:10px 13px;border-radius:10px;font:14px Arial;box-shadow:0 2px 10px #0002}</style></head><body><div id="map"></div><div class="hint">Move the map and tap the exact shop entrance to place the pin.</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const map=L.map('map').setView([22.5,78.9],5);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);let marker=null;map.on('click',function(e){if(marker)map.removeLayer(marker);marker=L.marker(e.latlng).addTo(map);window.ReactNativeWebView.postMessage(JSON.stringify({latitude:e.latlng.lat,longitude:e.latlng.lng}));});</script></body></html>`;
+
+function coordinatesFromMapLink(raw: string): { latitude: number; longitude: number } | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const patterns = [
+    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
+    /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+    /(?:[?&](?:q|query|ll|center|destination)=)(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i,
+    /(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const latitude = Number(match[1]), longitude = Number(match[2]);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180) return { latitude, longitude };
+    }
+  }
+  try {
+    const url = new URL(text);
+    for (const key of ['q','query','ll','center','destination']) {
+      const value = url.searchParams.get(key);
+      if (!value) continue;
+      const match = value.match(/(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+      if (match) {
+        const latitude = Number(match[1]), longitude = Number(match[2]);
+        if (latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180) return { latitude, longitude };
+      }
+    }
+  } catch {}
+  return null;
+}
 
 export default function AdminScreen() {
   const [token, setToken] = useState<string | null>(null);
@@ -18,8 +53,12 @@ export default function AdminScreen() {
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
+  const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapsLink, setMapsLink] = useState('');
+  const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' as 'employee' | 'manager', managerId: '' });
-  const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '', latitude: '', longitude: '' });
+  const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
 
   const load = useCallback(async (activeToken: string) => {
     const [userResult, shopResult, teamResult] = await Promise.all([
@@ -75,18 +114,54 @@ export default function AdminScreen() {
     finally { setSaving(false); }
   };
 
+  const useCurrentLocation = async () => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) throw new Error('Location permission is required to capture the shop location.');
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const accuracy = position.coords.accuracy ?? 9999;
+      if (accuracy > 50) throw new Error(`Location accuracy is about ${Math.round(accuracy)}m. Move outdoors and try again.`);
+      setShopLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      Alert.alert('Location captured', `GPS accuracy: about ${Math.round(accuracy)} metres. Confirm that you are standing at the shop.`);
+    } catch (error) { Alert.alert('Could not get location', error instanceof Error ? error.message : 'Please try again.'); }
+  };
+
+  const acceptMapPin = () => {
+    if (!mapPin) { Alert.alert('Select a point', 'Tap the map at the shop entrance to place a pin.'); return; }
+    setShopLocation(mapPin);
+    setMapVisible(false);
+    Alert.alert('Location selected', 'Map pin saved. Please confirm it is exactly at the shop entrance.');
+  };
+
+  const useMapsLink = () => {
+    const coordinates = coordinatesFromMapLink(mapsLink);
+    if (!coordinates) {
+      Alert.alert('Could not read coordinates', 'This link does not contain visible coordinates. Open the Google Maps place, choose Share, and copy its full maps URL. Some shortened links cannot be decoded offline; use Select on Map or Use Current Location instead.');
+      return;
+    }
+    setShopLocation(coordinates);
+    Alert.alert('Location extracted', 'Coordinates were read from your map link. Please confirm the pin is exactly at the shop entrance.');
+  };
+
   const createShop = async () => {
     if (!token) return;
-    const latitude = Number(shopForm.latitude), longitude = Number(shopForm.longitude);
-    if (!shopForm.name.trim() || !shopForm.shopCode.trim() || !shopForm.latitude || !shopForm.longitude ||
-        !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      Alert.alert('Invalid shop details', 'Enter a shop name, unique shop code and valid GPS coordinates.'); return;
+    if (!shopForm.name.trim() || !shopForm.shopCode.trim()) {
+      Alert.alert('Missing shop details', 'Enter a shop name and unique shop code.'); return;
+    }
+    if (!shopLocation) {
+      Alert.alert('Shop location required', 'Choose one of the three location options before registering this shop.'); return;
     }
     setSaving(true);
     try {
-      await api.createShop(token, { name: shopForm.name.trim(), shopCode: shopForm.shopCode.trim(), address: shopForm.address.trim(), area: shopForm.area.trim(), latitude, longitude });
-      Alert.alert('Shop registered', 'The shop is now available for employee check-in.');
-      setShopForm({ name: '', shopCode: '', address: '', area: '', latitude: '', longitude: '' });
+      await api.createShop(token, {
+        name: shopForm.name.trim(), shopCode: shopForm.shopCode.trim(),
+        address: shopForm.address.trim(), area: shopForm.area.trim(),
+        latitude: shopLocation.latitude, longitude: shopLocation.longitude
+      });
+      Alert.alert('Shop registered', 'The shop and its verified reference coordinates are saved.');
+      setShopForm({ name: '', shopCode: '', address: '', area: '' });
+      setShopLocation(null);
+      setMapsLink('');
       await load(token);
     } catch (error) { Alert.alert('Could not register shop', error instanceof Error ? error.message : 'Please try again.'); }
     finally { setSaving(false); }
@@ -149,21 +224,37 @@ export default function AdminScreen() {
         </Section>
       </>}
       {tab === 'shops' && <>
-        <Section title="Register a shop" hint="Use the exact coordinates of the physical shop.">
+        <Section title="Register a shop" hint="Choose any one of the three ways to set its location.">
           <Field label="SHOP NAME" value={shopForm.name} onChange={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name"/>
           <Field label="SHOP CODE" value={shopForm.shopCode} onChange={v=>setShopForm({...shopForm,shopCode:v})} placeholder="SHOP001" autoCapitalize="characters"/>
           <Field label="ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="Full address"/>
           <Field label="AREA" value={shopForm.area} onChange={v=>setShopForm({...shopForm,area:v})} placeholder="Area / city"/>
-          <View style={styles.twoCol}><View style={{flex:1}}><Field label="LATITUDE" value={shopForm.latitude} onChange={v=>setShopForm({...shopForm,latitude:v})} placeholder="29.xxxxxx" keyboardType="decimal-pad"/></View><View style={{flex:1}}><Field label="LONGITUDE" value={shopForm.longitude} onChange={v=>setShopForm({...shopForm,longitude:v})} placeholder="77.xxxxxx" keyboardType="decimal-pad"/></View></View>
-          <Text style={styles.note}>Check-in is accepted only within 50 metres of these registered coordinates.</Text>
+          <View style={styles.locationBox}>
+            <Text style={styles.locationTitle}>SHOP GPS LOCATION</Text>
+            <Text style={styles.locationHint}>{shopLocation ? `Selected: ${shopLocation.latitude.toFixed(5)}, ${shopLocation.longitude.toFixed(5)}` : 'No location selected yet'}</Text>
+            <Pressable onPress={()=>{setMapPin(null);setMapVisible(true);}} style={styles.locationButton}><Text style={styles.locationButtonText}>1. Select on map</Text></Pressable>
+            <Pressable onPress={useCurrentLocation} style={styles.locationButton}><Text style={styles.locationButtonText}>2. Use current location</Text></Pressable>
+            <Text style={styles.fieldLabel}>3. PASTE GOOGLE MAPS LINK</Text>
+            <TextInput value={mapsLink} onChangeText={setMapsLink} placeholder="https://maps.app.goo.gl/..." placeholderTextColor="#98A59D" autoCapitalize="none" autoCorrect={false} style={styles.input}/>
+            <Pressable onPress={useMapsLink} style={styles.linkButton}><Text style={styles.linkButtonText}>Read location from link</Text></Pressable>
+            {shopLocation && <Pressable onPress={()=>{setShopLocation(null);setMapsLink('');}}><Text style={styles.clearLocation}>Clear selected location</Text></Pressable>}
+          </View>
+          <Text style={styles.note}>Coordinates are captured automatically and sent to the server. Check-ins are verified against the registered shop pin within 50 metres.</Text>
           <Primary label={saving?'Registering…':'Register shop'} onPress={createShop} disabled={saving}/>
         </Section>
         <Section title="Registered shops" hint="Active shop locations available to employees.">
-          {shops.length===0 ? <Empty text="No shops registered yet."/> : shops.map(shop=><View key={shop._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{shop.name}</Text><Text style={styles.rowSub}>{shop.shopCode} · {shop.area || shop.address || 'Address not added'}</Text></View><Text style={styles.distance}>{shop.location ? `${shop.location.latitude.toFixed(4)}, ${shop.location.longitude.toFixed(4)}` : 'GPS set'}</Text></View>)}
+          {shops.length===0 ? <Empty text="No shops registered yet."/> : shops.map(shop=><View key={shop._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{shop.name}</Text><Text style={styles.rowSub}>{shop.shopCode} · {shop.area || shop.address || 'Address not added'}</Text></View><Text style={styles.distance}>{shop.location ? 'GPS saved' : 'Location missing'}</Text></View>)}
         </Section>
       </>}
       <Text style={styles.footer}>Admin access only. Employee location is requested only when they initiate a shop check-in.</Text>
     </ScrollView>
+    <Modal visible={mapVisible} animationType="slide" onRequestClose={()=>setMapVisible(false)}>
+      <SafeAreaView style={styles.mapModal}>
+        <View style={styles.mapHeader}><View style={{flex:1}}><Text style={styles.sectionTitle}>Select shop on map</Text><Text style={styles.sectionHint}>Tap the exact shop entrance to place a pin.</Text></View><Pressable onPress={()=>setMapVisible(false)}><Text style={styles.closeMap}>CLOSE</Text></Pressable></View>
+        <WebView originWhitelist={['*']} source={{html:MAP_HTML}} javaScriptEnabled domStorageEnabled onMessage={(event:WebViewMessageEvent)=>{try{const point=JSON.parse(event.nativeEvent.data);if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude))setMapPin(point);}catch{}}}/>
+        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin ? `Pin: ${mapPin.latitude.toFixed(5)}, ${mapPin.longitude.toFixed(5)}` : 'Tap the map to choose a location'}</Text><Primary label="Use this map location" onPress={acceptMapPin} disabled={!mapPin}/></View>
+      </SafeAreaView>
+    </Modal>
   </SafeAreaView>;
 }
 
@@ -181,5 +272,6 @@ const styles = StyleSheet.create({
  content:{padding:18,paddingBottom:34},welcome:{backgroundColor:'#174B37',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#B8D6C2'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#D2E5D8',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E5ECE6'},statValue:{fontSize:24,fontWeight:'900',color:'#1A543B'},statLabel:{fontSize:10,color:'#7C8B81',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E5ECE6'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#1E3A2B'},sectionHint:{fontSize:10,color:'#89968D',marginTop:4,marginBottom:13},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#EEF2EE',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#2B4235'},rowSub:{fontSize:9,color:'#8A978E',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#E4F3E8',color:'#247047'},absent:{backgroundColor:'#F1F2EF',color:'#7D8980'},distance:{fontSize:9,color:'#718177',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#8A978E',textAlign:'center',paddingVertical:20},
- field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#627268',marginBottom:7},input:{borderWidth:1,borderColor:'#E1E9E2',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#213B2D',backgroundColor:'#FCFDFC'},roleRow:{flexDirection:'row',gap:8,marginBottom:12},managerChoices:{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:12},choice:{paddingHorizontal:12,paddingVertical:9,borderWidth:1,borderColor:'#DCE6DE',borderRadius:9,backgroundColor:'#fff'},choiceSelected:{borderColor:'#28744E',backgroundColor:'#EAF4ED'},choiceText:{fontSize:10,color:'#6E7D73',fontWeight:'700'},choiceTextSelected:{color:'#1D6843'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#7D8B81',marginBottom:12},primary:{backgroundColor:'#176344',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EDF4EE',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#286B49'},footer:{fontSize:9,color:'#929D94',textAlign:'center',lineHeight:14,marginTop:6}
+ field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#627268',marginBottom:7},input:{borderWidth:1,borderColor:'#E1E9E2',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#213B2D',backgroundColor:'#FCFDFC'},roleRow:{flexDirection:'row',gap:8,marginBottom:12},managerChoices:{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:12},choice:{paddingHorizontal:12,paddingVertical:9,borderWidth:1,borderColor:'#DCE6DE',borderRadius:9,backgroundColor:'#fff'},choiceSelected:{borderColor:'#28744E',backgroundColor:'#EAF4ED'},choiceText:{fontSize:10,color:'#6E7D73',fontWeight:'700'},choiceTextSelected:{color:'#1D6843'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#7D8B81',marginBottom:12},primary:{backgroundColor:'#176344',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EDF4EE',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#286B49'},footer:{fontSize:9,color:'#929D94',textAlign:'center',lineHeight:14,marginTop:6},
+ locationBox:{backgroundColor:'#F5F8F5',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2EBE3',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#315642'},locationHint:{fontSize:10,color:'#7D8B81',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#E6F1E8',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1E6945'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D6946'},clearLocation:{fontSize:10,color:'#A04D42',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F3F6F3'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#246B49',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#718177',marginBottom:9}
 });
