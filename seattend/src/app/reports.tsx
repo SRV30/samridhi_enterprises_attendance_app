@@ -50,7 +50,7 @@ export default function ReportsScreen() {
           return;
         }
         if (session.user.role !== 'admin') {
-          router.replace(session.user.role === 'manager' ? '/manager' : '/dashboard');
+          router.replace('/dashboard');
           return;
         }
         setToken(session.token);
