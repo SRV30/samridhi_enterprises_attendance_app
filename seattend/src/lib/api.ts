@@ -26,7 +26,7 @@ export type Shop = {
   verifiedBy?: { name?: string; email?: string } | null;
   verifiedAt?: string | null;
   createdAt?: string;
-  location?: { latitude: number; longitude: number };
+  location?: { latitude: number; longitude: number; placeName?: string };
 };
 
 export type EmployeeAttendanceHistory = {
@@ -182,9 +182,9 @@ export const api = {
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   userDetails: (token: string, id: string) => request<{ profile: UserDetails }>(`/users/${id}/profile`, {}, token),
   archiveUser: (token: string, id: string) => request<{ message: string }>(`/users/${id}/archive`, { method: 'POST' }, token),
-  createShop: (token: string, data: { name: string; address: string; pinCode: string; district: string; state: string; mobileNumber: string; latitude: number; longitude: number }) =>
+  createShop: (token: string, data: { name: string; address: string; pinCode: string; district: string; state: string; mobileNumber: string; latitude: number; longitude: number; placeName: string }) =>
     request<{ shop: Shop; message: string }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
-  updateShop: (token: string, id: string, data: { name?: string; address?: string; pinCode?: string; district?: string; state?: string; mobileNumber?: string; latitude?: number; longitude?: number; active?: boolean; verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED'; rejectionReason?: string }) =>
+  updateShop: (token: string, id: string, data: { name?: string; address?: string; pinCode?: string; district?: string; state?: string; mobileNumber?: string; latitude?: number; longitude?: number; placeName?: string; active?: boolean; verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED'; rejectionReason?: string }) =>
     request<{ shop: Shop; message: string }>(`/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   deleteShop: (token: string, id: string) =>
     request<{ message: string }>(`/shops/${id}`, { method: 'DELETE' }, token),
