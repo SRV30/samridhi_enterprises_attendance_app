@@ -374,6 +374,7 @@ export default function AdminScreen() {
             {person.role === 'employee'
               ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
               : <Text style={styles.adminAccountTag}>ADMIN</Text>}
+            <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={archiveAccount.bind(null, person)} style={styles.smallAction}><Text style={styles.smallActionText}>Archive</Text></Pressable>
           </View>)}
         </Section>
       </>}
