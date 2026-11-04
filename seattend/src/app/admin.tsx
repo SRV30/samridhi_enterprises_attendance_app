@@ -261,7 +261,7 @@ export default function AdminScreen() {
 
   const createShop = async () => {
     if (!token) return;
-    if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\\d{6}$/.test(shopForm.pinCode.trim()) || !shopForm.district.trim() || !shopForm.state.trim() || !/^\\+?\\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\\s().-]/g, ''))) {
+    if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\d{6}$/.test(shopForm.pinCode.trim()) || !shopForm.district.trim() || !shopForm.state.trim() || !/^\+?\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\s().-]/g, ''))) {
       Alert.alert('Missing shop details', 'Enter shop name, full address, valid 6-digit PIN code, district, state and mobile number.'); return;
     }
     if (!shopLocation) {
@@ -386,7 +386,7 @@ export default function AdminScreen() {
           <Field label="SHOP NAME" value={shopForm.name} onChange={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name"/>
           <Field label="FULL ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="House / building, street and locality"/>
           <View style={styles.twoCol}>
-            <View style={{flex:1}}><Field label="PIN CODE" value={shopForm.pinCode} onChange={v=>setShopForm({...shopForm,pinCode:v.replace(/\\D/g,'').slice(0,6)})} placeholder="247667" keyboardType="number-pad"/></View>
+            <View style={{flex:1}}><Field label="PIN CODE" value={shopForm.pinCode} onChange={v=>setShopForm({...shopForm,pinCode:v.replace(/\D/g,'').slice(0,6)})} placeholder="247667" keyboardType="number-pad"/></View>
             <View style={{flex:1}}><Field label="DISTRICT" value={shopForm.district} onChange={v=>setShopForm({...shopForm,district:v})} placeholder="Haridwar"/></View>
           </View>
           <Field label="STATE" value={shopForm.state} onChange={v=>setShopForm({...shopForm,state:v})} placeholder="Uttarakhand"/>
