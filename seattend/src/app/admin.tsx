@@ -79,7 +79,7 @@ export default function AdminScreen() {
       try {
         const session = await getSession();
         if (!session) { router.replace('/'); return; }
-        if (session.user.role !== 'admin') { router.replace('/dashboard'); return; }
+        if (session.user.role !== 'admin') { router.replace(session.user.role === 'manager' ? '/manager' : '/dashboard'); return; }
         setToken(session.token);
         setAdminName(session.user.name);
         await load(session.token);
