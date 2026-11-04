@@ -32,8 +32,6 @@ export default function DashboardScreen() {
   const [checking,setChecking] = useState<string|null>(null);
   const [refreshing,setRefreshing] = useState(false);
   const [registering,setRegistering] = useState(false);
-  const [mapCenter,setMapCenter] = useState<{latitude:number;longitude:number}|null>(null);
-  const [mapPin,setMapPin] = useState<{latitude:number;longitude:number;placeName:string}|null>(null);
   const [shopLocation,setShopLocation] = useState<{latitude:number;longitude:number;placeName:string}|null>(null);
   const [shopForm,setShopForm] = useState({name:'',address:'',pinCode:'',district:'',state:'Uttarakhand',mobileNumber:''});
 
