@@ -160,14 +160,30 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Hard delete is restricted to admins.
+// Permanently delete the shop document. Attendance visits remain as historical records.
 router.delete('/:id', allowRoles('admin'), async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid shop ID' });
-    const shop = await Shop.findOneAndUpdate({ _id: req.params.id, isDeleted: { $ne: true } }, { $set: { isDeleted: true, active: false } }, { new: true });
+
+    const shop = await Shop.findById(req.params.id);
     if (!shop) return res.status(404).json({ message: 'Shop not found' });
-    await writeAuditLog(req, { action: 'SHOP_DELETED', entityType: 'shop', entityId: shop.id, entityLabel: shop.name });
-    res.json({ message: 'Shop removed from the directory. Historical visits are preserved.' });
+
+    // Remove notifications that point to this shop so no dangling shop links remain.
+    await Notification.deleteMany({ shop: shop._id });
+
+    // Keep attendance visit records for reporting; only the shop master record is removed.
+    const deletion = await Shop.deleteOne({ _id: shop._id });
+    if (deletion.deletedCount !== 1) return res.status(409).json({ message: 'Shop could not be deleted. Refresh and try again.' });
+
+    await writeAuditLog(req, {
+      action: 'SHOP_PERMANENTLY_DELETED',
+      entityType: 'shop',
+      entityId: shop.id,
+      entityLabel: shop.name,
+      details: { attendanceHistoryPreserved: true }
+    });
+
+    res.json({ message: 'Shop permanently deleted from the database. Historical attendance records are preserved; notifications linked to this shop were removed.' });
   } catch (error) { next(error); }
 });
 
