@@ -161,29 +161,31 @@ export default function AdminScreen() {
     } finally { setProfileLoading(false); }
   };
 
-  const archiveAccount = (person: ManagedUser) => {
+  const permanentlyDeleteAccount = (person: ManagedUser) => {
     if (!token) return;
-    if ((person._id || person.id) === adminId) {
-      Alert.alert('Current admin account', 'You cannot remove the admin account you are currently using.');
+    const personId = person._id || person.id || '';
+    if (personId === adminId) {
+      Alert.alert('Current admin account', 'You cannot permanently delete the admin account you are currently using.');
       return;
     }
     Alert.alert(
-      'Archive account?',
-      'This account will lose sign-in access and disappear from the active account directory. Existing attendance and shop visit history will be retained for company records.',
+      'Permanently delete account?',
+      'This action cannot be undone. The account, login credentials, attendance visits and personal notifications will be permanently removed. Company shop records will remain.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Archive account', style: 'destructive', onPress: async () => {
+        { text: 'Permanently delete', style: 'destructive', onPress: async () => {
           setSaving(true);
           try {
-            await api.archiveUser(token, person._id || person.id || '');
-            if (selectedUser?._id === person._id) {
+            const result = await api.deleteUser(token, personId);
+            if (selectedUser?._id === personId) {
               setProfileVisible(false);
               setSelectedUser(null);
             }
             await load(token);
-            Alert.alert('Account archived', 'Sign-in access has been removed. Historical attendance has been retained.');
-          } catch (error) { Alert.alert('Could not archive account', error instanceof Error ? error.message : 'Please try again.'); }
-          finally { setSaving(false); }
+            Alert.alert('Account permanently deleted', result.message);
+          } catch (error) {
+            Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.');
+          } finally { setSaving(false); }
         } }
       ]
     );
@@ -413,7 +415,7 @@ export default function AdminScreen() {
             {person.role === 'employee'
               ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
               : <Text style={styles.adminAccountTag}>ADMIN</Text>}
-            <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={archiveAccount.bind(null, person)} style={styles.smallAction}><Text style={styles.smallActionText}>Archive</Text></Pressable>
+            <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={permanentlyDeleteAccount.bind(null, person)} style={styles.smallAction}><Text style={[styles.smallActionText,styles.deactivateText]}>Delete permanently</Text></Pressable>
           </View>)}
         </Section>
       </>}
