@@ -9,6 +9,7 @@ const shopRoutes = require('./routes/shops');
 const visitRoutes = require('./routes/visits');
 const userRoutes = require('./routes/users');
 const reportRoutes = require('./routes/reports');
+const notificationRoutes = require('./routes/notifications');
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET must be configured with at least 32 characters');
@@ -30,6 +31,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
 app.use((error, _req, res, _next) => {
