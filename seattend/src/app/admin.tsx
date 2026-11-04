@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { api, ManagedUser, Shop, TeamEmployee } from '../lib/api';
+import { api, ManagedUser, Shop, TeamEmployee, UserDetails } from '../lib/api';
 import { clearSession, getSession } from '../lib/session';
 
 type Tab = 'overview' | 'people' | 'shops';
@@ -49,6 +49,7 @@ function coordinatesFromMapLink(raw: string): { latitude: number; longitude: num
 export default function AdminScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [adminName, setAdminName] = useState('Administrator');
+  const [adminId, setAdminId] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -62,7 +63,10 @@ export default function AdminScreen() {
   const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapsLink, setMapsLink] = useState('');
   const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' as 'admin' | 'employee' });
+  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'employee' as 'admin' | 'employee' });
+  const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
+  const [profileVisible, setProfileVisible] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
@@ -83,6 +87,7 @@ export default function AdminScreen() {
         if (session.user.role !== 'admin') { router.replace('/dashboard'); return; }
         setToken(session.token);
         setAdminName(session.user.name);
+        setAdminId(session.user.id);
         await load(session.token);
       } catch (error) {
         Alert.alert('Admin dashboard error', error instanceof Error ? error.message : 'Please try again.');
