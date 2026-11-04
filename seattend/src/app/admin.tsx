@@ -5,10 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { api, AppNotification, ManagedUser, Shop, TeamEmployee, UserDetails } from '../lib/api';
+import { api, AppNotification, AuditLog, ManagedUser, Shop, TeamEmployee, UserDetails } from '../lib/api';
 import { clearSession, getSession } from '../lib/session';
 
-type Tab = 'overview' | 'people' | 'shops';
+type Tab = 'overview' | 'people' | 'shops' | 'audit';
 
 const MAP_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;width:100%;margin:0;padding:0}#searchPanel{position:absolute;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:12px;box-shadow:0 2px 10px #0003;font:14px Arial}#searchRow{display:flex;gap:6px}#placeQuery{min-width:0;flex:1;border:1px solid #CBD5E1;border-radius:8px;padding:11px;font-size:14px}#searchBtn{border:0;border-radius:8px;background:#2563EB;color:#fff;padding:0 14px;font-weight:bold}#hint{font-size:11px;color:#64748B;margin-top:7px}#results{max-height:155px;overflow:auto;margin-top:5px}#results button{display:block;width:100%;text-align:left;background:white;border:0;border-top:1px solid #E2E8F0;padding:10px 5px;font-size:12px;color:#1E293B}</style></head><body><div id="map"></div><div id="searchPanel"><div id="searchRow"><input id="placeQuery" placeholder="Search shop, address or landmark" autocomplete="off"><button id="searchBtn" onclick="searchPlaces()">SEARCH</button></div><div id="hint">Search for a place, select a result, then fine-tune the pin by tapping the map.</div><div id="results"></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const map=L.map('map').setView([29.8543,77.8880],13);setTimeout(()=>map.invalidateSize(),350);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);let marker=null;function choosePoint(lat,lon,label){if(marker)map.removeLayer(marker);marker=L.marker([lat,lon]).addTo(map);map.setView([lat,lon],18);document.getElementById('hint').textContent=label||'Pin selected. Tap the exact shop entrance to adjust it.';window.ReactNativeWebView.postMessage(JSON.stringify({latitude:lat,longitude:lon}));}map.on('click',function(e){choosePoint(e.latlng.lat,e.latlng.lng,'Pin selected. Tap again to adjust the shop entrance location.');});window.addEventListener('resize',()=>map.invalidateSize());async function searchPlaces(){const q=document.getElementById('placeQuery').value.trim();const results=document.getElementById('results');if(!q){document.getElementById('hint').textContent='Enter a shop name, address or nearby landmark.';return;}results.innerHTML='';document.getElementById('hint').textContent='Searching places…';try{const response=await fetch('https://photon.komoot.io/api/?limit=6&q='+encodeURIComponent(q));if(!response.ok)throw new Error('Search service unavailable');const data=await response.json();if(!data.features||!data.features.length){document.getElementById('hint').textContent='No results found. Try a fuller address or nearby landmark.';return;}document.getElementById('hint').textContent='Select the correct result, then adjust the pin to the shop entrance.';data.features.forEach(feature=>{const p=feature.properties||{};const label=[p.name,p.street,p.city||p.locality,p.state,p.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ')||'Unnamed place';const button=document.createElement('button');button.textContent=label;button.onclick=()=>{const coords=feature.geometry.coordinates;choosePoint(coords[1],coords[0],label);results.innerHTML='';};results.appendChild(button);});}catch(e){document.getElementById('hint').textContent='Could not search right now. Check internet and try again, or tap the map manually.';}}document.getElementById('placeQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchPlaces();});</script></body></html>`;
 
@@ -55,6 +55,10 @@ export default function AdminScreen() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPages, setAuditPages] = useState(1);
+  const [auditTotal, setAuditTotal] = useState(0);
   const [team, setTeam] = useState<TeamEmployee[]>([]);
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,14 +77,18 @@ export default function AdminScreen() {
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
   const load = useCallback(async (activeToken: string) => {
-    const [userResult, shopResult, teamResult, notificationResult] = await Promise.all([
-      api.users(activeToken), api.shops(activeToken), api.teamToday(activeToken), api.notifications(activeToken)
+    const [userResult, shopResult, teamResult, notificationResult, auditResult] = await Promise.all([
+      api.users(activeToken), api.shops(activeToken), api.teamToday(activeToken), api.notifications(activeToken), api.auditLogs(activeToken)
     ]);
     setUsers(userResult.users);
     setShops(shopResult.shops);
     setTeam(teamResult.employees);
     setNotifications(notificationResult.notifications);
     setUnreadCount(notificationResult.unreadCount);
+    setAuditLogs(auditResult.logs);
+    setAuditPage(auditResult.pagination.page);
+    setAuditPages(auditResult.pagination.pages);
+    setAuditTotal(auditResult.pagination.total);
   }, []);
 
   useEffect(() => {
@@ -347,7 +355,7 @@ export default function AdminScreen() {
       {notifications.slice(0,5).map(item=><View key={item._id} style={[styles.notificationItem,!item.readAt&&styles.notificationUnread]}><Text style={styles.notificationItemTitle}>{item.title}</Text><Text style={styles.notificationMessage}>{item.message}</Text><Text style={styles.notificationDate}>{new Date(item.createdAt).toLocaleString('en-IN')}</Text></View>)}
     </View>}
     <View style={styles.tabs}>
-      {(['overview','people','shops'] as Tab[]).map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item === 'overview' ? 'Overview' : item === 'people' ? 'People' : 'Shops'}</Text></Pressable>)}
+      {(['overview','people','shops','audit'] as Tab[]).map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item === 'overview' ? 'Overview' : item === 'people' ? 'People' : item === 'shops' ? 'Shops' : 'Audit'}</Text></Pressable>)}
     </View>
     <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh}/>}>
       {tab === 'overview' && <>
@@ -444,6 +452,23 @@ export default function AdminScreen() {
           </View>)}
         </Section>
       </>}
+      {tab === 'audit' && <>
+        <Section title="Audit history" hint={auditTotal + ' recorded actions · Newest activity appears first.'}>
+          {auditLogs.length === 0 ? <Empty text="No activity has been recorded yet."/> : auditLogs.map(item=><View key={item._id} style={styles.auditItem}>
+            <View style={styles.auditTop}><Text style={styles.auditAction}>{item.action.replace(/_/g,' ')}</Text><Text style={styles.auditRole}>{item.actorRole.toUpperCase()}</Text></View>
+            <Text style={styles.auditEntity}>{item.entityLabel || item.entityType} · {item.entityType}</Text>
+            <Text style={styles.auditActor}>By {item.actorName} · {new Date(item.createdAt).toLocaleString('en-IN')}</Text>
+            {item.details?.distanceMeters !== undefined && <Text style={styles.auditMeta}>GPS distance: {String(item.details.distanceMeters)} m</Text>}
+            {item.details?.changedFields && <Text style={styles.auditMeta}>Changed: {(item.details.changedFields as string[]).join(', ')}</Text>}
+            {item.details?.rejectionReason && <Text style={styles.auditMeta}>Reason: {String(item.details.rejectionReason)}</Text>}
+          </View>)}
+          <View style={styles.auditPagination}>
+            <Pressable disabled={auditPage <= 1 || saving} onPress={async()=>{if(!token)return;setSaving(true);try{const result=await api.auditLogs(token,auditPage-1);setAuditLogs(result.logs);setAuditPage(result.pagination.page);}catch(error){Alert.alert('Could not load audit history',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}} style={[styles.smallAction,(auditPage<=1)&&{opacity:.4}]}><Text style={styles.smallActionText}>Previous</Text></Pressable>
+            <Text style={styles.auditPageText}>Page {auditPage} of {Math.max(1,auditPages)}</Text>
+            <Pressable disabled={auditPage >= auditPages || saving} onPress={async()=>{if(!token)return;setSaving(true);try{const result=await api.auditLogs(token,auditPage+1);setAuditLogs(result.logs);setAuditPage(result.pagination.page);}catch(error){Alert.alert('Could not load audit history',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}} style={[styles.smallAction,(auditPage>=auditPages)&&{opacity:.4}]}><Text style={styles.smallActionText}>Next</Text></Pressable>
+          </View>
+        </Section>
+      </>}
       <Text style={styles.footer}>Admin access only. Employee location is requested only when they initiate a shop check-in.</Text>
     </ScrollView>
     <Modal visible={mapVisible} animationType="slide" onRequestClose={()=>setMapVisible(false)}>
@@ -503,7 +528,7 @@ const styles = StyleSheet.create({
  safe:{flex:1,backgroundColor:'#F8FAFC'},center:{flex:1,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#F8FAFC'},muted:{fontSize:12,color:'#64748B'},
  header:{paddingHorizontal:18,paddingTop:12,paddingBottom:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},headerActions:{flexDirection:'row',alignItems:'center',gap:7},reportsLink:{backgroundColor:'#EFF6FF',paddingHorizontal:10,paddingVertical:9,borderRadius:9},reportsLinkText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},brandRow:{flexDirection:'row',alignItems:'center',gap:10},brandMark:{width:39,height:39,borderRadius:12,backgroundColor:'#2563EB',alignItems:'center',justifyContent:'center'},brandLetter:{color:'#fff',fontSize:18,fontWeight:'900'},kicker:{fontSize:8,fontWeight:'900',letterSpacing:1.2,color:'#64748B'},heading:{fontSize:18,fontWeight:'900',color:'#0F172A',marginTop:3},logout:{backgroundColor:'#F1F5F9',paddingHorizontal:11,paddingVertical:9,borderRadius:9},logoutText:{fontSize:9,fontWeight:'900',color:'#1D4ED8'},
  tabs:{flexDirection:'row',marginHorizontal:18,backgroundColor:'#F1F5F9',borderRadius:11,padding:4},tab:{flex:1,paddingVertical:10,borderRadius:8,alignItems:'center'},tabActive:{backgroundColor:'#fff',elevation:1},tabText:{fontSize:11,fontWeight:'700',color:'#64748B'},tabTextActive:{color:'#1D4ED8'},
- content:{padding:18,paddingBottom:34},notificationPanel:{marginHorizontal:18,marginBottom:10,backgroundColor:'#fff',borderWidth:1,borderColor:'#E2E8F0',borderRadius:13,padding:13},notificationHeader:{flexDirection:'row',alignItems:'center',marginBottom:8},notificationTitle:{fontSize:13,fontWeight:'900',color:'#0F172A'},notificationHint:{fontSize:10,color:'#64748B',marginTop:3},notificationAction:{fontSize:8,fontWeight:'900',color:'#1D4ED8'},notificationItem:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},notificationUnread:{backgroundColor:'#EFF6FF',paddingHorizontal:7,borderRadius:7},notificationItemTitle:{fontSize:10,fontWeight:'800',color:'#1E293B'},notificationMessage:{fontSize:10,color:'#475569',lineHeight:15,marginTop:3},notificationDate:{fontSize:8,color:'#94A3B8',marginTop:4},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
+ content:{padding:18,paddingBottom:34},auditItem:{paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9'},auditTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},auditAction:{fontSize:10,fontWeight:'900',color:'#1E293B'},auditRole:{fontSize:8,fontWeight:'900',color:'#1D4ED8',backgroundColor:'#EFF6FF',paddingHorizontal:7,paddingVertical:4,borderRadius:7,overflow:'hidden'},auditEntity:{fontSize:10,color:'#334155',marginTop:5},auditActor:{fontSize:9,color:'#64748B',marginTop:4},auditMeta:{fontSize:9,color:'#475569',marginTop:3},auditPagination:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingTop:12,borderTopWidth:1,borderTopColor:'#E2E8F0'},auditPageText:{fontSize:9,fontWeight:'700',color:'#64748B'},notificationPanel:{marginHorizontal:18,marginBottom:10,backgroundColor:'#fff',borderWidth:1,borderColor:'#E2E8F0',borderRadius:13,padding:13},notificationHeader:{flexDirection:'row',alignItems:'center',marginBottom:8},notificationTitle:{fontSize:13,fontWeight:'900',color:'#0F172A'},notificationHint:{fontSize:10,color:'#64748B',marginTop:3},notificationAction:{fontSize:8,fontWeight:'900',color:'#1D4ED8'},notificationItem:{paddingVertical:9,borderTopWidth:1,borderTopColor:'#F1F5F9'},notificationUnread:{backgroundColor:'#EFF6FF',paddingHorizontal:7,borderRadius:7},notificationItemTitle:{fontSize:10,fontWeight:'800',color:'#1E293B'},notificationMessage:{fontSize:10,color:'#475569',lineHeight:15,marginTop:3},notificationDate:{fontSize:8,color:'#94A3B8',marginTop:4},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E2E8F0'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#0F172A'},sectionHint:{fontSize:10,color:'#64748B',marginTop:4,marginBottom:13},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#1E293B'},rowSub:{fontSize:9,color:'#64748B',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#EFF6FF',color:'#1D4ED8'},absent:{backgroundColor:'#F1F5F9',color:'#64748B'},distance:{fontSize:9,color:'#64748B',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#64748B',textAlign:'center',paddingVertical:20},
  rolePicker:{flexDirection:'row',gap:9,marginBottom:12},roleOption:{flex:1,borderWidth:1,borderColor:'#E2E8F0',borderRadius:11,padding:12,backgroundColor:'#FFFFFF'},roleOptionSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},roleOptionTitle:{fontSize:11,fontWeight:'900',color:'#334155'},roleOptionTitleSelected:{color:'#1D4ED8'},roleOptionHint:{fontSize:8,lineHeight:13,color:'#64748B',marginTop:5},adminAccountTag:{fontSize:8,fontWeight:'900',color:'#1D4ED8',paddingHorizontal:9,paddingVertical:6,backgroundColor:'#EFF6FF',borderRadius:10,overflow:'hidden'},field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
