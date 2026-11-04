@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Visit = require('../models/Visit');
+const { writeAuditLog } = require('../utils/audit');
 const { authenticate, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router.post('/', async (req, res, next) => {
       name: name.trim(), employeeId, email: normalizedEmail, phone: normalizedPhone,
       passwordHash, role, isDeleted: false
     });
+    await writeAuditLog(req, { action: 'ACCOUNT_CREATED', entityType: 'account', entityId: user.id, entityLabel: user.name, details: { role: user.role, email: user.email } });
     res.status(201).json({ user: {
       id: user.id, name: user.name, employeeId: user.employeeId, email: user.email,
       phone: user.phone || '', role: user.role, active: user.active, createdAt: user.createdAt
@@ -82,8 +84,10 @@ router.patch('/:id', async (req, res, next) => {
     const user = await User.findById(req.params.id);
     if (!user || user.isDeleted) return res.status(404).json({ message: 'Account not found' });
     if (user.role !== 'employee') return res.status(403).json({ message: 'Only employee accounts can be deactivated here' });
+    const previousActive = user.active;
     user.active = body.active;
     await user.save();
+    if (previousActive !== user.active) await writeAuditLog(req, { action: user.active ? 'ACCOUNT_REACTIVATED' : 'ACCOUNT_DEACTIVATED', entityType: 'account', entityId: user.id, entityLabel: user.name, details: { role: user.role } });
     res.json({ user: { id: user.id, name: user.name, employeeId: user.employeeId, email: user.email, phone: user.phone || '', role: user.role, active: user.active } });
   } catch (error) { next(error); }
 });
@@ -103,6 +107,7 @@ router.post('/:id/archive', async (req, res, next) => {
     user.isDeleted = true;
     user.deletedAt = new Date();
     await user.save();
+    await writeAuditLog(req, { action: 'ACCOUNT_ARCHIVED', entityType: 'account', entityId: user.id, entityLabel: user.name, details: { role: user.role } });
     res.json({ message: 'Account archived. Sign-in is disabled and attendance history is retained.' });
   } catch (error) { next(error); }
 });
