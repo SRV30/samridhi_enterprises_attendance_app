@@ -40,6 +40,43 @@ export type TeamEmployee = ManagedUser & {
   visitCount: number;
   visits: Visit[];
 };
+export type AttendanceReportVisit = {
+  id: string;
+  shopName: string;
+  shopCode: string;
+  checkedInAt: string;
+  distanceMeters: number;
+};
+
+export type AttendanceReportDay = {
+  date: string;
+  visitCount: number;
+  visits: AttendanceReportVisit[];
+};
+
+export type AttendanceReportEmployee = {
+  id: string;
+  name: string;
+  employeeId: string;
+  active: boolean;
+  presentDays: number;
+  visitCount: number;
+  attendance: AttendanceReportDay[];
+};
+
+export type AttendanceReport = {
+  from: string;
+  to: string;
+  timeZone: string;
+  generatedAt: string;
+  totals: {
+    employeeCount: number;
+    employeesWithAttendance: number;
+    presentDays: number;
+    visitCount: number;
+  };
+  employees: AttendanceReportEmployee[];
+};
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   if (!API_URL) throw new Error('API address is not configured. Set EXPO_PUBLIC_API_URL in seattend/.env.');
@@ -86,6 +123,30 @@ export const api = {
     request<{ shop: Shop }>('/shops', { method: 'POST', body: JSON.stringify(data) }, token),
   teamToday: (token: string) =>
     request<{ date: string; employees: TeamEmployee[] }>('/visits/team/today', {}, token),
+
+  attendanceReport: (token: string, from: string, to: string, employeeId?: string) => {
+    const query = new URLSearchParams({ from, to });
+    if (employeeId) query.set('employeeId', employeeId);
+    return request<AttendanceReport>(`/reports/attendance?${query.toString()}`, {}, token);
+  },
+  attendanceReportCsv: async (token: string, from: string, to: string, employeeId?: string) => {
+    if (!API_URL) throw new Error('API address is not configured. Set EXPO_PUBLIC_API_URL in seattend/.env.');
+    const query = new URLSearchParams({ from, to });
+    if (employeeId) query.set('employeeId', employeeId);
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/api/reports/attendance.csv?${query.toString()}`, {
+        headers: { Accept: 'text/csv', Authorization: `Bearer ${token}` }
+      });
+    } catch {
+      throw new Error('Cannot reach the attendance server. Check your phone network and API address.');
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.message || `Export failed (${response.status})`);
+    }
+    return response.text();
+  },
 };
 
 export function apiConfigured() {
