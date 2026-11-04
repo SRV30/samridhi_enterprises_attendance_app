@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,8 +26,12 @@ export default function LoginScreen() {
     }
 
     Alert.alert(
-      'Setup in progress',
-      'The login interface is ready. Secure employee authentication will be connected when the backend is implemented.',
+      'Preview only',
+      'Authentication is not connected yet. Continue to preview the employee dashboard using sample data?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open preview', onPress: () => router.push('/dashboard') },
+      ],
     );
   };
 
