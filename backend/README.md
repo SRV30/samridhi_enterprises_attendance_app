@@ -4,9 +4,9 @@ Separate Node.js API for the Samridhi Sales Attendance mobile app. It does not m
 
 ## Account roles
 
-The system has exactly two roles:
+The system has exactly two roles. Admins can create additional Admin accounts as well as Employee accounts:
 
-- **Admin** — creates and manages employee accounts, registers shops, reviews attendance and exports reports.
+- **Admin** — creates Admin and Employee accounts, manages employee access, registers shops, reviews attendance and exports reports.
 - **Employee** — checks in at registered shops and views their own daily attendance and visit history.
 
 There are no manager accounts, employee-manager assignments or manager-only endpoints.
@@ -52,7 +52,7 @@ All protected endpoints require `Authorization: Bearer <token>`.
 | POST | `/api/shops` | Admin | Register a shop and trusted GPS coordinates |
 | PATCH | `/api/shops/:id` | Admin | Update shop name, code, address, active status or trusted GPS coordinates |
 | GET | `/api/users` | Admin | List admin and employee accounts |
-| POST | `/api/users` | Admin | Create an employee account |
+| POST | `/api/users` | Admin | Create an Admin or Employee account (`role` defaults to `employee`) |
 | PATCH | `/api/users/:id` | Admin | Deactivate or reactivate an employee account |
 | POST | `/api/visits/check-in` | Employee | Submit a one-time GPS reading for shop check-in |
 | GET | `/api/visits/today` | Employee | Read own attendance and today's visits |
