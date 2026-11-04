@@ -62,7 +62,7 @@ export default function AdminScreen() {
   const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapsLink, setMapsLink] = useState('');
   const [shopLocation, setShopLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' as 'employee' | 'manager', managerId: '' });
+  const [userForm, setUserForm] = useState({ name: '', employeeId: '', email: '', password: '' });
   const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
@@ -80,7 +80,7 @@ export default function AdminScreen() {
       try {
         const session = await getSession();
         if (!session) { router.replace('/'); return; }
-        if (session.user.role !== 'admin') { router.replace(session.user.role === 'manager' ? '/manager' : '/dashboard'); return; }
+        if (session.user.role !== 'admin') { router.replace('/dashboard'); return; }
         setToken(session.token);
         setAdminName(session.user.name);
         await load(session.token);
@@ -110,11 +110,10 @@ export default function AdminScreen() {
       await api.createUser(token, {
         name: userForm.name.trim(), employeeId: userForm.employeeId.trim(),
         ...(userForm.email.trim() ? { email: userForm.email.trim() } : {}),
-        password: userForm.password, role: userForm.role,
-        ...(userForm.role === 'employee' && userForm.managerId ? { managerId: userForm.managerId } : {})
+        password: userForm.password
       });
-      Alert.alert('Account created', `${userForm.role} account ${userForm.employeeId} created.`);
-      setUserForm({ name: '', employeeId: '', email: '', password: '', role: 'employee', managerId: '' });
+      Alert.alert('Employee created', `Employee account ${userForm.employeeId} created.`);
+      setUserForm({ name: '', employeeId: '', email: '', password: '' });
       await load(token);
     } catch (error) { Alert.alert('Could not create account', error instanceof Error ? error.message : 'Please try again.'); }
     finally { setSaving(false); }
@@ -258,16 +257,6 @@ export default function AdminScreen() {
     );
   };
 
-  const assignManager = async (employee: ManagedUser, managerId: string | null) => {
-    if (!token) return;
-    setSaving(true);
-    try {
-      await api.updateUser(token, employee._id || employee.id || '', { managerId });
-      await load(token);
-    } catch (error) { Alert.alert('Assignment update failed', error instanceof Error ? error.message : 'Please try again.'); }
-    finally { setSaving(false); }
-  };
-
   const toggleAccount = async (account: ManagedUser) => {
     if (!token) return;
     setSaving(true);
@@ -281,7 +270,6 @@ export default function AdminScreen() {
   if (busy) return <SafeAreaView style={styles.center}><ActivityIndicator size="large" color="#2563EB"/><Text style={styles.muted}>Loading admin workspace…</Text></SafeAreaView>;
 
   const employees = users.filter(u => u.role === 'employee');
-  const managers = users.filter(u => u.role === 'manager');
   const visits = team.reduce((sum, employee) => sum + employee.visitCount, 0);
 
   return <SafeAreaView style={styles.safe}>
@@ -297,7 +285,7 @@ export default function AdminScreen() {
       {tab === 'overview' && <>
         <View style={styles.welcome}><Text style={styles.welcomeEyebrow}>ADMINISTRATION</Text><Text style={styles.welcomeTitle}>Hello, {adminName.split(' ')[0]}.</Text><Text style={styles.welcomeText}>Manage your field team and shop attendance.</Text></View>
         <View style={styles.stats}>
-          <Stat label="Employees" value={employees.filter(x=>x.active).length}/><Stat label="Managers" value={managers.filter(x=>x.active).length}/>
+          <Stat label="Employees" value={employees.filter(x=>x.active).length}/><Stat label="Inactive staff" value={employees.filter(x=>!x.active).length}/>
           <Stat label="Active shops" value={shops.filter(shop=>shop.active !== false).length}/><Stat label="Today's visits" value={visits}/>
         </View>
         <Section title="Today's team attendance" hint="Attendance is marked by the first verified shop visit.">
@@ -308,35 +296,15 @@ export default function AdminScreen() {
         </Section>
       </>}
       {tab === 'people' && <>
-        <Section title="Create an account" hint="Add a manager or a field employee.">
+        <Section title="Create an account" hint="Create a company employee account.">
           <Field label="FULL NAME" value={userForm.name} onChange={v=>setUserForm({...userForm,name:v})} placeholder="Full name"/>
           <Field label="EMPLOYEE ID" value={userForm.employeeId} onChange={v=>setUserForm({...userForm,employeeId:v})} placeholder="e.g. EMP001" autoCapitalize="characters"/>
           <Field label="EMAIL (OPTIONAL)" value={userForm.email} onChange={v=>setUserForm({...userForm,email:v})} placeholder="name@example.com" keyboardType="email-address"/>
           <Field label="TEMPORARY PASSWORD" value={userForm.password} onChange={v=>setUserForm({...userForm,password:v})} placeholder="Set initial password" secureTextEntry/>
-          <Text style={styles.fieldLabel}>ROLE</Text><View style={styles.roleRow}><Choice label="Employee" selected={userForm.role==='employee'} onPress={()=>setUserForm({...userForm,role:'employee',managerId:''})}/><Choice label="Manager" selected={userForm.role==='manager'} onPress={()=>setUserForm({...userForm,role:'manager',managerId:''})}/></View>
-          {userForm.role === 'employee' && managers.filter(m=>m.active).length > 0 && <>
-            <Text style={styles.fieldLabel}>ASSIGN MANAGER (OPTIONAL)</Text>
-            <View style={styles.managerChoices}><Choice label="Unassigned" selected={!userForm.managerId} onPress={()=>setUserForm({...userForm,managerId:''})}/>{managers.filter(m=>m.active).map(m=><Choice key={m._id} label={m.name} selected={userForm.managerId===m._id} onPress={()=>setUserForm({...userForm,managerId:m._id})}/>)}</View>
-          </>}
           <Primary label={saving?'Creating…':'Create account'} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Team accounts" hint="Manage account access and employee-to-manager assignments.">
-          {users.filter(u=>u.role!=='admin').length===0 ? <Empty text="No managers or employees yet."/> : users.filter(u=>u.role!=='admin').map(person=>{
-            const currentManagerId = typeof person.manager === 'string' ? person.manager : person.manager?._id || '';
-            return <View key={person._id} style={styles.accountCard}>
-              <View style={styles.listRow}>
-                <View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · {person.role}</Text></View>
-                <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
-              </View>
-              {person.role === 'employee' && <>
-                <Text style={styles.assignmentLabel}>ASSIGNED MANAGER</Text>
-                <View style={styles.managerChoices}>
-                  <Choice label="Unassigned" selected={!currentManagerId} disabled={saving} onPress={()=>assignManager(person,null)}/>
-                  {managers.filter(m=>m.active).map(m=><Choice key={m._id} label={m.name} selected={currentManagerId===(m._id||m.id)} disabled={saving} onPress={()=>assignManager(person,m._id||m.id||null)}/>)}
-                </View>
-              </>}
-            </View>;
-          })}
+        <Section title="Employee accounts" hint="Deactivate access or reactivate an employee account.">
+          {employees.length===0 ? <Empty text="No employees have been created yet."/> : employees.map(person=><View key={person._id} style={styles.listRow}><View style={{flex:1}}><Text style={styles.rowTitle}>{person.name}</Text><Text style={styles.rowSub}>{person.employeeId} · Employee</Text></View><Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable></View>)}
         </Section>
       </>}
       {tab === 'shops' && <>
@@ -389,7 +357,6 @@ function Section({title,hint,children}:{title:string;hint:string;children:React.
 function Empty({text}:{text:string}) { return <Text style={styles.empty}>{text}</Text>; }
 function Field({label,value,onChange,placeholder,secureTextEntry,keyboardType,autoCapitalize}:{label:string;value:string;onChange:(v:string)=>void;placeholder:string;secureTextEntry?:boolean;keyboardType?:'default'|'email-address'|'decimal-pad';autoCapitalize?:'none'|'sentences'|'words'|'characters'}) { return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor="#94A3B8" secureTextEntry={secureTextEntry} keyboardType={keyboardType||'default'} autoCapitalize={autoCapitalize||'none'} autoCorrect={false} style={styles.input}/></View>; }
 function Primary({label,onPress,disabled}:{label:string;onPress:()=>void;disabled:boolean}) { return <Pressable disabled={disabled} onPress={onPress} style={[styles.primary,disabled&&{opacity:.6}]}><Text style={styles.primaryText}>{label}</Text></Pressable>; }
-function Choice({label,selected,onPress,disabled}:{label:string;selected:boolean;onPress:()=>void;disabled?:boolean}) { return <Pressable disabled={disabled} onPress={onPress} style={[styles.choice,selected&&styles.choiceSelected,disabled&&{opacity:.55}]}><Text style={[styles.choiceText,selected&&styles.choiceTextSelected]}>{label}</Text></Pressable>; }
 
 const styles = StyleSheet.create({
  safe:{flex:1,backgroundColor:'#F8FAFC'},center:{flex:1,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#F8FAFC'},muted:{fontSize:12,color:'#64748B'},
@@ -398,6 +365,6 @@ const styles = StyleSheet.create({
  content:{padding:18,paddingBottom:34},welcome:{backgroundColor:'#1D4ED8',borderRadius:16,padding:20,marginBottom:13},welcomeEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:1.3,color:'#DBEAFE'},welcomeTitle:{fontSize:24,fontWeight:'900',color:'#fff',marginTop:9},welcomeText:{fontSize:11,color:'#DBEAFE',marginTop:5},
  stats:{flexDirection:'row',flexWrap:'wrap',gap:9,marginBottom:13},stat:{width:'48%',flexGrow:1,backgroundColor:'#fff',borderRadius:13,padding:15,borderWidth:1,borderColor:'#E2E8F0'},statValue:{fontSize:24,fontWeight:'900',color:'#1D4ED8'},statLabel:{fontSize:10,color:'#64748B',marginTop:4},
  section:{backgroundColor:'#fff',borderRadius:15,padding:16,marginBottom:13,borderWidth:1,borderColor:'#E2E8F0'},sectionTitle:{fontSize:14,fontWeight:'900',color:'#0F172A'},sectionHint:{fontSize:10,color:'#64748B',marginTop:4,marginBottom:13},listRow:{flexDirection:'row',alignItems:'center',paddingVertical:11,borderTopWidth:1,borderTopColor:'#F1F5F9',gap:8},rowTitle:{fontSize:11,fontWeight:'800',color:'#1E293B'},rowSub:{fontSize:9,color:'#64748B',marginTop:4},status:{fontSize:9,fontWeight:'900',paddingHorizontal:8,paddingVertical:5,borderRadius:20,overflow:'hidden'},present:{backgroundColor:'#EFF6FF',color:'#1D4ED8'},absent:{backgroundColor:'#F1F5F9',color:'#64748B'},distance:{fontSize:9,color:'#64748B',fontVariant:['tabular-nums']},empty:{fontSize:11,color:'#64748B',textAlign:'center',paddingVertical:20},
- field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},roleRow:{flexDirection:'row',gap:8,marginBottom:12},managerChoices:{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:12},choice:{paddingHorizontal:12,paddingVertical:9,borderWidth:1,borderColor:'#E2E8F0',borderRadius:9,backgroundColor:'#fff'},choiceSelected:{borderColor:'#2563EB',backgroundColor:'#EFF6FF'},choiceText:{fontSize:10,color:'#64748B',fontWeight:'700'},choiceTextSelected:{color:'#1D4ED8'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
+ field:{marginBottom:12},fieldLabel:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:'#475569',marginBottom:7},input:{borderWidth:1,borderColor:'#E2E8F0',borderRadius:10,paddingHorizontal:12,paddingVertical:11,fontSize:12,color:'#1E293B',backgroundColor:'#FFFFFF'},twoCol:{flexDirection:'row',gap:10},note:{fontSize:9,lineHeight:14,color:'#64748B',marginBottom:12},primary:{backgroundColor:'#2563EB',paddingVertical:13,borderRadius:10,alignItems:'center',marginTop:3},primaryText:{fontSize:11,fontWeight:'900',color:'#fff'},smallAction:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#EFF6FF',borderRadius:8},smallActionText:{fontSize:9,fontWeight:'800',color:'#1D4ED8'},footer:{fontSize:9,color:'#94A3B8',textAlign:'center',lineHeight:14,marginTop:6},
  locationBox:{backgroundColor:'#F8FAFC',borderRadius:12,padding:13,borderWidth:1,borderColor:'#E2E8F0',marginBottom:12},locationTitle:{fontSize:10,fontWeight:'900',letterSpacing:.8,color:'#1E293B'},locationHint:{fontSize:10,color:'#64748B',marginTop:5,marginBottom:10},locationButton:{backgroundColor:'#EFF6FF',padding:11,borderRadius:9,alignItems:'center',marginBottom:8},locationButtonText:{fontSize:11,fontWeight:'800',color:'#1D4ED8'},linkButton:{alignSelf:'flex-start',paddingVertical:10},linkButtonText:{fontSize:10,fontWeight:'900',color:'#1D4ED8'},clearLocation:{fontSize:10,color:'#DC2626',fontWeight:'800',marginTop:4},mapModal:{flex:1,backgroundColor:'#F8FAFC'},mapHeader:{paddingHorizontal:16,paddingVertical:13,flexDirection:'row',alignItems:'center'},closeMap:{fontSize:10,fontWeight:'900',color:'#1D4ED8',padding:8},mapFooter:{padding:14,backgroundColor:'#fff'},mapSelected:{fontSize:10,color:'#64748B',marginBottom:9}
 });
