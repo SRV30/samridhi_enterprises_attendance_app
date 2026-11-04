@@ -4,6 +4,8 @@ export type SessionUser = {
   id: string;
   name: string;
   employeeId: string;
+  email?: string | null;
+  phone?: string;
   role: 'admin' | 'employee';
 };
 
@@ -30,7 +32,8 @@ export type ManagedUser = {
   id?: string;
   name: string;
   employeeId: string;
-  email?: string;
+  email?: string | null;
+  phone?: string;
   role: 'admin' | 'employee';
   active: boolean;
 };
@@ -100,10 +103,10 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 }
 
 export const api = {
-  login: (employeeId: string, password: string) =>
+  login: (identifier: string, password: string) =>
     request<{ token: string; user: SessionUser }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ employeeId, password }),
+      body: JSON.stringify({ identifier, password }),
     }),
   me: (token: string) => request<SessionUser>('/auth/me', {}, token),
   shops: (token: string, includeInactive = false) => request<{ shops: Shop[] }>(includeInactive ? '/shops?includeInactive=true' : '/shops', {}, token),
@@ -115,7 +118,7 @@ export const api = {
       body: JSON.stringify({ shopId, ...coords }),
     }, token),
   users: (token: string) => request<{ users: ManagedUser[] }>('/users', {}, token),
-  createUser: (token: string, data: { name: string; employeeId: string; email?: string; password: string; role: 'admin' | 'employee' }) =>
+  createUser: (token: string, data: { name: string; email: string; phone?: string; password: string; role: 'admin' | 'employee' }) =>
     request<{ user: ManagedUser }>('/users', { method: 'POST', body: JSON.stringify(data) }, token),
   updateUser: (token: string, id: string, data: { active: boolean }) =>
     request<{ user: ManagedUser }>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
