@@ -9,7 +9,8 @@ const shopSchema = new mongoose.Schema({
   mobileNumber: { type: String, required: true, trim: true, match: /^\+?\d{7,15}$/ },
   location: {
     latitude: { type: Number, required: true, min: -90, max: 90 },
-    longitude: { type: Number, required: true, min: -180, max: 180 }
+    longitude: { type: Number, required: true, min: -180, max: 180 },
+    placeName: { type: String, trim: true, default: '' }
   },
   active: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },
