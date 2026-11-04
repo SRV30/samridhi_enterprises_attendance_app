@@ -410,8 +410,8 @@ export default function AdminScreen() {
             <View style={styles.listRow}>
               <View style={{flex:1}}>
                 <Text style={styles.rowTitle}>{shop.name}</Text>
-                <Text style={styles.rowSub}>{shop.address} · {shop.district}, {shop.state} - {shop.pinCode}</Text>
-                <Text style={styles.rowSub}>Mobile: {shop.mobileNumber} · Submitted by: {shop.createdBy?.name || 'Legacy / Admin'}</Text>
+                <Text style={styles.rowSub}>{shop.address || 'Address not available'} · {[shop.district, shop.state].filter(Boolean).join(', ') || 'Location details pending'} {shop.pinCode ? '- ' + shop.pinCode : ''}</Text>
+                <Text style={styles.rowSub}>Mobile: {shop.mobileNumber || 'Not available'} · Submitted by: {shop.createdBy?.name || 'Legacy / Admin'}</Text>
                 <Text style={styles.shopCoordinate}>{shop.location ? shop.location.latitude.toFixed(5) + ', ' + shop.location.longitude.toFixed(5) : 'GPS missing'}</Text>
               </View>
               <Text style={[styles.shopState, shop.verificationStatus === 'VERIFIED' ? styles.shopVerified : shop.verificationStatus === 'REJECTED' ? styles.shopRejected : styles.shopPending]}>{shop.verificationStatus || 'VERIFIED'}</Text>
