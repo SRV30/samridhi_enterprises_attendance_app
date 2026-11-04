@@ -38,7 +38,7 @@ export type ManagedUser = {
   active: boolean;
 };
 
-export type UserDetails = ManagedUser & { totalVisits: number; presentDays: number; recentVisits: Visit[]; recentVisitsLimit: number; };
+export type UserDetails = ManagedUser & { createdAt?: string; updatedAt?: string; deletedAt?: string | null; totalVisits: number; presentDays: number; recentVisits: Visit[]; recentVisitsLimit: number; };
 
 export type TeamEmployee = ManagedUser & {
   attendance: string;
