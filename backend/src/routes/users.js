@@ -10,7 +10,10 @@ router.use(authenticate, allowRoles('admin'));
 // Admin creates employee accounts. The only account roles are admin and employee.
 router.post('/', async (req, res, next) => {
   try {
-    const { name, employeeId, email, password } = req.body || {};
+    const { name, employeeId, email, password, role } = req.body || {};
+    if (role !== undefined && role !== 'employee') {
+      return res.status(400).json({ message: 'Only employee accounts can be created here' });
+    }
     if (typeof name !== 'string' || !name.trim() ||
         typeof employeeId !== 'string' || !employeeId.trim() ||
         typeof password !== 'string' || !password) {
