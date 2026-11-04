@@ -29,6 +29,16 @@ export type Shop = {
   location?: { latitude: number; longitude: number };
 };
 
+export type AppNotification = {
+  _id: string;
+  title: string;
+  message: string;
+  type: 'SHOP_SUBMITTED' | 'SHOP_APPROVED' | 'SHOP_REJECTED';
+  readAt?: string | null;
+  createdAt: string;
+  shop?: Shop | null;
+};
+
 export type Visit = {
   _id: string;
   checkedInAt: string;
@@ -122,6 +132,9 @@ export const api = {
     }),
   me: (token: string) => request<SessionUser>('/auth/me', {}, token),
   shops: (token: string, status?: 'PENDING' | 'VERIFIED' | 'REJECTED') => request<{ shops: Shop[] }>(status ? `/shops?status=${status}` : '/shops', {}, token),
+  notifications: (token: string) => request<{ notifications: AppNotification[]; unreadCount: number }>('/notifications', {}, token),
+  markNotificationRead: (token: string, id: string) => request<{ message: string }>(`/notifications/${id}/read`, { method: 'PATCH' }, token),
+  markAllNotificationsRead: (token: string) => request<{ message: string }>('/notifications/read-all', { method: 'PATCH' }, token),
   today: (token: string) =>
     request<{ date: string; attendance: string; visitCount: number; visits: Visit[] }>('/visits/today', {}, token),
   checkIn: (token: string, shopId: string, coords: { latitude: number; longitude: number; accuracyMeters: number }) =>
