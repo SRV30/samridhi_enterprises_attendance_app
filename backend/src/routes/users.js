@@ -49,11 +49,11 @@ router.post('/', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Normal account directory excludes archived accounts.
+// Admin directory includes previously archived accounts so they can be permanently purged.
 router.get('/', async (_req, res, next) => {
   try {
-    const users = await User.find({ isDeleted: { $ne: true } })
-      .select('name employeeId email phone role active createdAt updatedAt')
+    const users = await User.find({})
+      .select('name employeeId email phone role active isDeleted deletedAt createdAt updatedAt')
       .sort({ role: 1, name: 1 }).lean();
     res.setHeader('Cache-Control', 'no-store');
     res.json({ users });
