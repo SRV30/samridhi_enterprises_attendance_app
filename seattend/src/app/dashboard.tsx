@@ -189,7 +189,7 @@ export default function DashboardScreen() {
     Alert.alert('Place selected',mapPin.placeName);
   };
 
-  const useMapsLink = () => {
+  const useMapsLink = async () => {
     const input = mapsLink.trim();
     if (!input) { Alert.alert('Paste a map link','Paste the Google Maps Share link first.'); return; }
     const coordinates = coordinatesFromMapLink(input);
@@ -324,7 +324,7 @@ export default function DashboardScreen() {
           <Pressable onPress={()=>setMapVisible(false)}><Text style={styles.closeMap}>CLOSE</Text></Pressable>
         </View>
         <WebView ref={mapWebView} originWhitelist={['*']} source={{html:MAP_HTML}} javaScriptEnabled domStorageEnabled onLoadEnd={onMapLoaded} onError={()=>Alert.alert('Map loading failed','Check your internet connection and try again.')} onMessage={(event:WebViewMessageEvent)=>{try{const point=JSON.parse(event.nativeEvent.data);if(validCoordinates(point.latitude,point.longitude))setMapPin({latitude:point.latitude,longitude:point.longitude,placeName:String(point.placeName||'')});}catch{}}}/>
-        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin ? `Pin: ${mapPin.latitude.toFixed(5)}, ${mapPin.longitude.toFixed(5)}` : 'Tap the map to choose a location'}</Text><Pressable disabled={!mapPin} onPress={acceptMapPin} style={[styles.registerButton,!mapPin&&{opacity:.45}]}><Text style={styles.registerButtonText}>USE THIS MAP LOCATION</Text></Pressable></View>
+        <View style={styles.mapFooter}><Text style={styles.mapSelected}>{mapPin?.placeName || 'Tap the map or select a search result to identify a place'}</Text><Pressable disabled={!mapPin} onPress={acceptMapPin} style={[styles.registerButton,!mapPin&&{opacity:.45}]}><Text style={styles.registerButtonText}>USE THIS MAP LOCATION</Text></Pressable></View>
       </SafeAreaView>
     </Modal>
   </SafeAreaView>;
