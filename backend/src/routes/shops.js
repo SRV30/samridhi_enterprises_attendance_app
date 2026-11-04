@@ -10,11 +10,11 @@ function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 function validMobile(value) {
-  return typeof value === 'string' && /^\\+?\\d{7,15}$/.test(value.trim().replace(/[\\s().-]/g, ''));
+  return typeof value === 'string' && /^\+?\d{7,15}$/.test(value.trim().replace(/[\s().-]/g, ''));
 }
 function validateShop(body) {
   const { name, address, pinCode, district, state, mobileNumber, latitude, longitude } = body;
-  if (!cleanText(name) || !cleanText(address) || !/^\\d{6}$/.test(String(pinCode || '').trim()) ||
+  if (!cleanText(name) || !cleanText(address) || !/^\d{6}$/.test(String(pinCode || '').trim()) ||
       !cleanText(district) || !cleanText(state) || !validMobile(mobileNumber) ||
       !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
       latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
@@ -54,7 +54,7 @@ router.post('/', allowRoles('admin', 'employee'), async (req, res, next) => {
       pinCode: String(body.pinCode).trim(),
       district: cleanText(body.district),
       state: cleanText(body.state),
-      mobileNumber: body.mobileNumber.trim().replace(/[\\s().-]/g, ''),
+      mobileNumber: body.mobileNumber.trim().replace(/[\s().-]/g, ''),
       location: { latitude: body.latitude, longitude: body.longitude },
       createdBy: req.user._id,
       verificationStatus: isAdmin ? 'VERIFIED' : 'PENDING',
@@ -89,12 +89,12 @@ router.patch('/:id', allowRoles('admin'), async (req, res, next) => {
       }
     }
     if (body.pinCode !== undefined) {
-      if (!/^\\d{6}$/.test(String(body.pinCode).trim())) return res.status(400).json({ message: 'PIN code must contain exactly 6 digits' });
+      if (!/^\d{6}$/.test(String(body.pinCode).trim())) return res.status(400).json({ message: 'PIN code must contain exactly 6 digits' });
       shop.pinCode = String(body.pinCode).trim();
     }
     if (body.mobileNumber !== undefined) {
       if (!validMobile(body.mobileNumber)) return res.status(400).json({ message: 'Enter a valid mobile number' });
-      shop.mobileNumber = body.mobileNumber.trim().replace(/[\\s().-]/g, '');
+      shop.mobileNumber = body.mobileNumber.trim().replace(/[\s().-]/g, '');
     }
     if (body.active !== undefined) {
       if (typeof body.active !== 'boolean') return res.status(400).json({ message: 'active must be a boolean' });
