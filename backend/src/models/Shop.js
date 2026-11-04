@@ -12,6 +12,7 @@ const shopSchema = new mongoose.Schema({
     longitude: { type: Number, required: true, min: -180, max: 180 }
   },
   active: { type: Boolean, default: true },
+  isDeleted: { type: Boolean, default: false },
   verificationStatus: { type: String, enum: ['PENDING', 'VERIFIED', 'REJECTED'], default: 'VERIFIED', required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
