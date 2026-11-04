@@ -67,12 +67,12 @@ export default function AdminScreen() {
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const [profileVisible, setProfileVisible] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [shopForm, setShopForm] = useState({ name: '', shopCode: '', address: '', area: '' });
+  const [shopForm, setShopForm] = useState({ name: '', address: '', pinCode: '', district: '', state: 'Uttarakhand', mobileNumber: '' });
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
   const load = useCallback(async (activeToken: string) => {
     const [userResult, shopResult, teamResult] = await Promise.all([
-      api.users(activeToken), api.shops(activeToken, true), api.teamToday(activeToken)
+      api.users(activeToken), api.shops(activeToken), api.teamToday(activeToken)
     ]);
     setUsers(userResult.users);
     setShops(shopResult.shops);
@@ -238,7 +238,7 @@ export default function AdminScreen() {
   };
 
   const resetShopForm = () => {
-    setShopForm({ name: '', shopCode: '', address: '', area: '' });
+    setShopForm({ name: '', address: '', pinCode: '', district: '', state: 'Uttarakhand', mobileNumber: '' });
     setShopLocation(null);
     setMapsLink('');
     setEditingShopId(null);
@@ -248,9 +248,11 @@ export default function AdminScreen() {
     setEditingShopId(shop._id);
     setShopForm({
       name: shop.name,
-      shopCode: shop.shopCode,
       address: shop.address || '',
-      area: shop.area || ''
+      pinCode: shop.pinCode || '',
+      district: shop.district || '',
+      state: shop.state || 'Uttarakhand',
+      mobileNumber: shop.mobileNumber || ''
     });
     setShopLocation(shop.location || null);
     setMapsLink('');
@@ -259,8 +261,8 @@ export default function AdminScreen() {
 
   const createShop = async () => {
     if (!token) return;
-    if (!shopForm.name.trim() || !shopForm.shopCode.trim()) {
-      Alert.alert('Missing shop details', 'Enter a shop name and unique shop code.'); return;
+    if (!shopForm.name.trim() || !shopForm.address.trim() || !/^\\d{6}$/.test(shopForm.pinCode.trim()) || !shopForm.district.trim() || !shopForm.state.trim() || !/^\\+?\\d{7,15}$/.test(shopForm.mobileNumber.trim().replace(/[\\s().-]/g, ''))) {
+      Alert.alert('Missing shop details', 'Enter shop name, full address, valid 6-digit PIN code, district, state and mobile number.'); return;
     }
     if (!shopLocation) {
       Alert.alert('Shop location required', 'Choose one of the three location options before saving this shop.'); return;
@@ -268,8 +270,9 @@ export default function AdminScreen() {
     setSaving(true);
     try {
       const payload = {
-        name: shopForm.name.trim(), shopCode: shopForm.shopCode.trim(),
-        address: shopForm.address.trim(), area: shopForm.area.trim(),
+        name: shopForm.name.trim(), address: shopForm.address.trim(),
+        pinCode: shopForm.pinCode.trim(), district: shopForm.district.trim(),
+        state: shopForm.state.trim(), mobileNumber: shopForm.mobileNumber.trim(),
         latitude: shopLocation.latitude, longitude: shopLocation.longitude
       };
       if (editingShopId) {
@@ -277,7 +280,7 @@ export default function AdminScreen() {
         Alert.alert('Shop updated', 'Shop details and its trusted GPS coordinates have been updated.');
       } else {
         await api.createShop(token, payload);
-        Alert.alert('Shop registered', 'The shop and its verified reference coordinates are saved.');
+        Alert.alert('Shop registered', 'The shop is registered and available for employee check-ins.');
       }
       resetShopForm();
       await load(token);
@@ -379,11 +382,15 @@ export default function AdminScreen() {
         </Section>
       </>}
       {tab === 'shops' && <>
-        <Section title={editingShopId ? 'Edit shop' : 'Register a shop'} hint={editingShopId ? 'Update the shop details or adjust its trusted GPS pin.' : 'Choose any one of the three ways to set its location.'}>
+        <Section title={editingShopId ? 'Edit shop' : 'Register a shop'} hint={editingShopId ? 'Update the shop address, contact details or trusted GPS pin.' : 'Register a shop with complete address and verified GPS coordinates.'}>
           <Field label="SHOP NAME" value={shopForm.name} onChange={v=>setShopForm({...shopForm,name:v})} placeholder="Shop name"/>
-          <Field label="SHOP CODE" value={shopForm.shopCode} onChange={v=>setShopForm({...shopForm,shopCode:v})} placeholder="SHOP001" autoCapitalize="characters"/>
-          <Field label="ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="Full address"/>
-          <Field label="AREA" value={shopForm.area} onChange={v=>setShopForm({...shopForm,area:v})} placeholder="Area / city"/>
+          <Field label="FULL ADDRESS" value={shopForm.address} onChange={v=>setShopForm({...shopForm,address:v})} placeholder="House / building, street and locality"/>
+          <View style={styles.twoCol}>
+            <View style={{flex:1}}><Field label="PIN CODE" value={shopForm.pinCode} onChange={v=>setShopForm({...shopForm,pinCode:v.replace(/\\D/g,'').slice(0,6)})} placeholder="247667" keyboardType="number-pad"/></View>
+            <View style={{flex:1}}><Field label="DISTRICT" value={shopForm.district} onChange={v=>setShopForm({...shopForm,district:v})} placeholder="Haridwar"/></View>
+          </View>
+          <Field label="STATE" value={shopForm.state} onChange={v=>setShopForm({...shopForm,state:v})} placeholder="Uttarakhand"/>
+          <Field label="SHOP MOBILE NUMBER" value={shopForm.mobileNumber} onChange={v=>setShopForm({...shopForm,mobileNumber:v})} placeholder="+91 9876543210" keyboardType="phone-pad"/>
           <View style={styles.locationBox}>
             <Text style={styles.locationTitle}>SHOP GPS LOCATION</Text>
             <Text style={styles.locationHint}>{shopLocation ? `Selected: ${shopLocation.latitude.toFixed(5)}, ${shopLocation.longitude.toFixed(5)}` : 'No location selected yet'}</Text>
@@ -398,15 +405,23 @@ export default function AdminScreen() {
           <Primary label={saving ? (editingShopId ? 'Saving…' : 'Registering…') : (editingShopId ? 'Save shop changes' : 'Register shop')} onPress={createShop} disabled={saving}/>
           {editingShopId && <Pressable disabled={saving} onPress={resetShopForm} style={styles.cancelEdit}><Text style={styles.cancelEditText}>Cancel editing</Text></Pressable>}
         </Section>
-        <Section title="Shop directory" hint="Edit shop details, adjust GPS coordinates or deactivate/reactivate a shop.">
+        <Section title="Shop directory" hint="Review registered shops, approve employee submissions, edit details or remove shops.">
           {shops.length===0 ? <Empty text="No shops registered yet."/> : shops.map(shop=><View key={shop._id} style={styles.shopAdminCard}>
             <View style={styles.listRow}>
-              <View style={{flex:1}}><Text style={styles.rowTitle}>{shop.name}</Text><Text style={styles.rowSub}>{shop.shopCode} · {shop.area || shop.address || 'Address not added'}</Text><Text style={styles.shopCoordinate}>{shop.location ? shop.location.latitude.toFixed(5) + ', ' + shop.location.longitude.toFixed(5) : 'GPS missing'}</Text></View>
-              <Text style={[styles.shopState,shop.active === false && styles.shopInactive]}>{shop.active === false ? 'INACTIVE' : 'ACTIVE'}</Text>
+              <View style={{flex:1}}>
+                <Text style={styles.rowTitle}>{shop.name}</Text>
+                <Text style={styles.rowSub}>{shop.address} · {shop.district}, {shop.state} - {shop.pinCode}</Text>
+                <Text style={styles.rowSub}>Mobile: {shop.mobileNumber} · Submitted by: {shop.createdBy?.name || 'Legacy / Admin'}</Text>
+                <Text style={styles.shopCoordinate}>{shop.location ? shop.location.latitude.toFixed(5) + ', ' + shop.location.longitude.toFixed(5) : 'GPS missing'}</Text>
+              </View>
+              <Text style={[styles.shopState, shop.verificationStatus === 'VERIFIED' ? styles.shopVerified : shop.verificationStatus === 'REJECTED' ? styles.shopRejected : styles.shopPending]}>{shop.verificationStatus || 'VERIFIED'}</Text>
             </View>
             <View style={styles.shopActions}>
-              <Pressable disabled={saving} onPress={()=>startEditShop(shop)} style={styles.smallAction}><Text style={styles.smallActionText}>Edit details / GPS</Text></Pressable>
+              {shop.verificationStatus !== 'VERIFIED' && <Pressable disabled={saving} onPress={async()=>{if(!token)return;setSaving(true);try{await api.updateShop(token,shop._id,{verificationStatus:'VERIFIED'});await load(token);}catch(error){Alert.alert('Approval failed',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}} style={styles.smallAction}><Text style={styles.smallActionText}>Approve</Text></Pressable>}
+              {shop.verificationStatus !== 'REJECTED' && <Pressable disabled={saving} onPress={()=>Alert.prompt ? Alert.prompt('Reject shop','Optional reason for rejection',async(reason)=>{if(!token)return;setSaving(true);try{await api.updateShop(token,shop._id,{verificationStatus:'REJECTED',rejectionReason:reason||'Details require correction'});await load(token);}catch(error){Alert.alert('Rejection failed',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}) : Alert.alert('Reject shop?','Mark this shop as rejected?', [{text:'Cancel',style:'cancel'},{text:'Reject',style:'destructive',onPress:async()=>{if(!token)return;setSaving(true);try{await api.updateShop(token,shop._id,{verificationStatus:'REJECTED',rejectionReason:'Details require correction'});await load(token);}catch(error){Alert.alert('Rejection failed',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}}])} style={styles.smallAction}><Text style={styles.smallActionText}>Reject</Text></Pressable>}
+              <Pressable disabled={saving} onPress={()=>startEditShop(shop)} style={styles.smallAction}><Text style={styles.smallActionText}>Edit</Text></Pressable>
               <Pressable disabled={saving} onPress={()=>toggleShop(shop)} style={[styles.smallAction,shop.active !== false && styles.deactivateAction]}><Text style={[styles.smallActionText,shop.active !== false && styles.deactivateText]}>{shop.active === false ? 'Reactivate' : 'Deactivate'}</Text></Pressable>
+              <Pressable disabled={saving} onPress={()=>Alert.alert('Delete shop?','This permanently removes the shop from the directory. Existing visit history is retained.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:async()=>{if(!token)return;setSaving(true);try{await api.deleteShop(token,shop._id);await load(token);}catch(error){Alert.alert('Delete failed',error instanceof Error?error.message:'Please try again.');}finally{setSaving(false);}}}])} style={styles.smallAction}><Text style={[styles.smallActionText,styles.deactivateText]}>Delete</Text></Pressable>
             </View>
           </View>)}
         </Section>
