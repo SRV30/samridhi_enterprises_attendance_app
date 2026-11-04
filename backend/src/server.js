@@ -17,6 +17,9 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 }
 
 const app = express();
+// Render runs the app behind a single trusted reverse proxy.
+app.set('trust proxy', 1);
+
 const origins = (process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
 app.use(helmet());
 app.use(cors({ origin(origin, callback) {
