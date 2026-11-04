@@ -6,7 +6,7 @@ A dedicated mobile attendance and field-visit application for Samridhi Enterpris
 
 The app has exactly two roles:
 
-- **Admin** — manages employee accounts, registered shops, attendance reports and exports.
+- **Admin** — creates other Admin accounts and Employee accounts, manages employee access, registered shops, attendance reports and exports.
 - **Employee** — checks in at registered shops and views personal attendance and visit history.
 
 There are no manager accounts, manager dashboards or employee-manager assignments.
@@ -76,7 +76,7 @@ npx expo start --tunnel
 
 ### Admin
 
-1. Create employee accounts and manage account access.
+1. Create Admin or Employee accounts and manage employee account access.
 2. Register shops and set their trusted GPS coordinates.
 3. Edit shop details and coordinates, or deactivate/reactivate a shop without deleting its visit history.
 4. Review all employees' daily attendance and verified visits.
