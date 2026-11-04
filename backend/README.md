@@ -31,7 +31,7 @@ All protected endpoints require `Authorization: Bearer <token>`.
 | GET | `/api/auth/me` | Authenticated | Read current account |
 | GET | `/api/shops` | Authenticated | List active shops; admins may pass `?includeInactive=true` to view the full shop directory |
 | POST | `/api/shops` | Admin | Register a shop and trusted GPS coordinates |
-| PATCH | `/api/shops/:id` | Admin | Update shop details or coordinates |
+| PATCH | `/api/shops/:id` | Admin | Update shop name, code, address, active status or trusted GPS coordinates |
 | GET | `/api/users` | Admin | List accounts |
 | POST | `/api/users` | Admin | Create a manager or employee |
 | PATCH | `/api/users/:id` | Admin | Update account status or employee manager assignment |
