@@ -15,8 +15,8 @@ router.post('/check-in', allowRoles('employee'), async (req, res, next) => {
         longitude < -180 || longitude > 180 || accuracyMeters <= 0 || accuracyMeters > 50) {
       return res.status(400).json({ message: 'Valid GPS coordinates and accuracy of 50m or better are required' });
     }
-    const shop = await Shop.findOne({ _id: shopId, active: true });
-    if (!shop) return res.status(404).json({ message: 'Active shop not found' });
+    const shop = await Shop.findOne({ _id: shopId, active: true, verificationStatus: 'VERIFIED' });
+    if (!shop) return res.status(404).json({ message: 'Active verified shop not found' });
 
     const distance = distanceMeters(
       { latitude, longitude },
@@ -50,7 +50,9 @@ router.post('/check-in', allowRoles('employee'), async (req, res, next) => {
 router.get('/today', allowRoles('employee'), async (req, res, next) => {
   try {
     const day = attendanceDay();
-    const visits = await Visit.find({ employee: req.user.id, attendanceDay: day }).populate('shop', 'name shopCode area address').sort({ checkedInAt: 1 });
+    const visits = await Visit.find({ employee: req.user.id, attendanceDay: day })
+      .populate('shop', 'name address pinCode district state mobileNumber location verificationStatus')
+      .sort({ checkedInAt: 1 });
     res.json({ date: day, attendance: visits.length ? 'Present' : 'Not marked', visitCount: visits.length, visits });
   } catch (error) { next(error); }
 });
@@ -60,7 +62,10 @@ router.get('/team/today', allowRoles('admin'), async (req, res, next) => {
     const day = attendanceDay();
     const employees = await require('../models/User').find({ role: 'employee', isDeleted: { $ne: true } }).select('name employeeId email phone active role').lean();
     const ids = employees.map(employee => employee._id);
-    const visits = await Visit.find({ employee: { $in: ids }, attendanceDay: day }).populate('employee', 'name employeeId email phone').populate('shop', 'name shopCode').sort({ checkedInAt: 1 }).lean();
+    const visits = await Visit.find({ employee: { $in: ids }, attendanceDay: day })
+      .populate('employee', 'name employeeId email phone')
+      .populate('shop', 'name address pinCode district state')
+      .sort({ checkedInAt: 1 }).lean();
     res.json({ date: day, employees: employees.map(employee => {
       const ownVisits = visits.filter(visit => String(visit.employee._id) === String(employee._id));
       return { ...employee, attendance: ownVisits.length ? 'Present' : 'Not marked', visitCount: ownVisits.length, visits: ownVisits };
