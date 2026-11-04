@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Visit = require('../models/Visit');
+const Shop = require('../models/Shop');
+const Notification = require('../models/Notification');
+const AuditLog = require('../models/AuditLog');
 const { writeAuditLog } = require('../utils/audit');
 const { authenticate, allowRoles } = require('../middleware/auth');
 
@@ -92,23 +95,63 @@ router.patch('/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Archive an account. This revokes sign-in but preserves the record and its attendance trail.
-router.post('/:id/archive', async (req, res, next) => {
+// Permanently remove an admin or employee account and its personal records.
+router.delete('/:id', async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid account ID' });
-    if (String(req.user.id) === String(req.params.id)) return res.status(403).json({ message: 'You cannot archive the admin account you are currently using' });
-    const user = await User.findById(req.params.id);
-    if (!user || user.isDeleted) return res.status(404).json({ message: 'Account not found' });
-    if (user.role === 'admin' && user.active) {
-      const admins = await User.countDocuments({ role: 'admin', active: true, isDeleted: { $ne: true } });
-      if (admins <= 1) return res.status(409).json({ message: 'The last active admin account cannot be archived' });
+    if (String(req.user._id) === String(req.params.id)) {
+      return res.status(403).json({ message: 'You cannot permanently delete the admin account you are currently using' });
     }
-    user.active = false;
-    user.isDeleted = true;
-    user.deletedAt = new Date();
-    await user.save();
-    await writeAuditLog(req, { action: 'ACCOUNT_ARCHIVED', entityType: 'account', entityId: user.id, entityLabel: user.name, details: { role: user.role } });
-    res.json({ message: 'Account archived. Sign-in is disabled and attendance history is retained.' });
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'Account not found' });
+
+    if (user.role === 'admin' && user.active) {
+      const activeAdmins = await User.countDocuments({ role: 'admin', active: true });
+      if (activeAdmins <= 1) {
+        return res.status(409).json({ message: 'The last active admin account cannot be deleted. Create or activate another admin first.' });
+      }
+    }
+
+    const ownedShops = await Shop.find({ createdBy: user._id }).select('_id').lean();
+    const ownedShopIds = ownedShops.map(shop => shop._id);
+
+    await Visit.deleteMany({ employee: user._id });
+    await Notification.deleteMany({ recipient: user._id });
+    await AuditLog.deleteMany({
+      $or: [
+        { actor: user._id },
+        { entityType: 'account', entityId: String(user._id) }
+      ]
+    });
+
+    // Company shop records remain available; remove links to the deleted account.
+    await Shop.updateMany(
+      { $or: [{ createdBy: user._id }, { verifiedBy: user._id }] },
+      { $set: { createdBy: null, verifiedBy: null } }
+    );
+
+    // Keep pending shop notifications for admins, but remove the deleted user's name.
+    if (ownedShopIds.length) {
+      await Notification.updateMany(
+        { shop: { $in: ownedShopIds } },
+        { $set: { message: 'A shop was submitted by a deleted account. Review the shop details and GPS pin.' } }
+      );
+    }
+
+    await User.deleteOne({ _id: user._id });
+
+    // Minimal deletion event; it contains no deleted account identifier or profile data.
+    await writeAuditLog(req, {
+      action: 'ACCOUNT_PERMANENTLY_DELETED',
+      entityType: 'account',
+      entityLabel: 'Account permanently deleted',
+      details: { role: user.role }
+    });
+
+    res.json({
+      message: 'Account permanently deleted. Its attendance, personal notifications and personal audit records were removed; company shop records were preserved.'
+    });
   } catch (error) { next(error); }
 });
 
