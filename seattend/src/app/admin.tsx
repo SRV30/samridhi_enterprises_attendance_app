@@ -146,11 +146,11 @@ export default function AdminScreen() {
       return;
     }
     Alert.alert(
-      'Delete account?',
+      'Archive account?',
       'This account will lose sign-in access and disappear from the active account directory. Existing attendance and shop visit history will be retained for company records.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete account', style: 'destructive', onPress: async () => {
+        { text: 'Archive account', style: 'destructive', onPress: async () => {
           setSaving(true);
           try {
             await api.archiveUser(token, person._id || person.id || '');
@@ -159,8 +159,8 @@ export default function AdminScreen() {
               setSelectedUser(null);
             }
             await load(token);
-            Alert.alert('Account deleted', 'Sign-in access has been removed. Historical attendance has been retained.');
-          } catch (error) { Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.'); }
+            Alert.alert('Account archived', 'Sign-in access has been removed. Historical attendance has been retained.');
+          } catch (error) { Alert.alert('Could not archive account', error instanceof Error ? error.message : 'Please try again.'); }
           finally { setSaving(false); }
         } }
       ]
