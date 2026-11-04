@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const visitSchema = new mongoose.Schema({
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true, index: true },
+  shopName: { type: String, trim: true, default: '' },
+  shopPlaceName: { type: String, trim: true, default: '' },
+  shopAddress: { type: String, trim: true, default: '' },
   attendanceDay: { type: String, required: true, index: true },
   checkedInAt: { type: Date, required: true },
   reportedLocation: {
