@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema({
   employeeId: { type: String, required: true, unique: true, uppercase: true, trim: true },
   email: { type: String, lowercase: true, trim: true, sparse: true, unique: true, required: function () { return this.isNew; } },
   phone: { type: String, trim: true, default: '' },
-  phone: { type: String, trim: true, default: '' },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date, default: null },
   passwordHash: { type: String, required: true, select: false },
