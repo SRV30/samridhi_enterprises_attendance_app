@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, apiConfigured } from '../lib/api';
-import { saveSession } from '../lib/session';
+import { getSession, saveSession } from '../lib/session';
 import BrandLogo from '../components/BrandLogo';
 
 export default function LoginScreen() {
@@ -13,6 +13,31 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const session = await getSession();
+        if (session && isMounted) {
+          router.replace(session.user.role === 'admin' ? '/admin' : '/dashboard');
+          return;
+        }
+      } catch (error) {
+        console.warn('Could not restore saved session:', error);
+      }
+
+      if (isMounted) setCheckingSession(false);
+    };
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -36,6 +61,18 @@ export default function LoginScreen() {
       setBusy(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar style="dark" />
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={{ marginTop: 12, color: '#64748B', fontSize: 13 }}>
+          Restoring your session...
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
