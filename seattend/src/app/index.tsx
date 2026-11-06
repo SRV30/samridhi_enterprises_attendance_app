@@ -29,7 +29,9 @@ export default function LoginScreen() {
       await saveSession(result.token, result.user);
       router.replace(result.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error) {
-      Alert.alert('Sign-in failed', error instanceof Error ? error.message : 'Please try again.');
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(`Sign-in failed: ${message}`);
+      else Alert.alert('Sign-in failed', message);
     } finally {
       setBusy(false);
     }
