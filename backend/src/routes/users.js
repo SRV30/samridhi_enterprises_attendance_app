@@ -95,62 +95,45 @@ router.patch('/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Permanently remove an admin or employee account and its personal records.
+// Archive an account instead of destroying business history. The account can no longer sign in,
+// while attendance visits, audit history and shop records remain available to administrators.
 router.delete('/:id', async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid account ID' });
     if (String(req.user._id) === String(req.params.id)) {
-      return res.status(403).json({ message: 'You cannot permanently delete the admin account you are currently using' });
+      return res.status(403).json({ message: 'You cannot archive the admin account you are currently using' });
     }
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'Account not found' });
+    if (!user || user.isDeleted) return res.status(404).json({ message: 'Account not found' });
 
     if (user.role === 'admin' && user.active) {
-      const activeAdmins = await User.countDocuments({ role: 'admin', active: true });
+      const activeAdmins = await User.countDocuments({ role: 'admin', active: true, isDeleted: { $ne: true } });
       if (activeAdmins <= 1) {
-        return res.status(409).json({ message: 'The last active admin account cannot be deleted. Create or activate another admin first.' });
+        return res.status(409).json({ message: 'The last active admin account cannot be archived. Create or activate another admin first.' });
       }
     }
 
-    const ownedShops = await Shop.find({ createdBy: user._id }).select('_id').lean();
-    const ownedShopIds = ownedShops.map(shop => shop._id);
-
-    await Visit.deleteMany({ employee: user._id });
-    await Notification.deleteMany({ recipient: user._id });
-    await AuditLog.deleteMany({
-      $or: [
-        { actor: user._id },
-        { entityType: 'account', entityId: String(user._id) }
-      ]
-    });
-
-    // Company shop records remain available; remove links to the deleted account.
-    await Shop.updateMany(
-      { $or: [{ createdBy: user._id }, { verifiedBy: user._id }] },
-      { $set: { createdBy: null, verifiedBy: null } }
-    );
-
-    // Keep pending shop notifications for admins, but remove the deleted user's name.
-    if (ownedShopIds.length) {
-      await Notification.updateMany(
-        { shop: { $in: ownedShopIds } },
-        { $set: { message: 'A shop was submitted by a deleted account. Review the shop details and GPS pin.' } }
-      );
+    if (!user.active || user.isDeleted) {
+      return res.status(200).json({ message: 'This account is already inactive. Its attendance history has been preserved.' });
     }
 
-    await User.deleteOne({ _id: user._id });
+    user.active = false;
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    await user.save();
 
-    // Minimal deletion event; it contains no deleted account identifier or profile data.
+    await Notification.deleteMany({ recipient: user._id });
     await writeAuditLog(req, {
-      action: 'ACCOUNT_PERMANENTLY_DELETED',
+      action: 'ACCOUNT_ARCHIVED',
       entityType: 'account',
-      entityLabel: 'Account permanently deleted',
-      details: { role: user.role }
+      entityId: user.id,
+      entityLabel: user.name,
+      details: { role: user.role, attendanceHistoryPreserved: true }
     });
 
     res.json({
-      message: 'Account permanently deleted. Its attendance, personal notifications and personal audit records were removed; company shop records were preserved.'
+      message: 'Account archived and sign-in disabled. Attendance history, reports and company shop records have been preserved.'
     });
   } catch (error) { next(error); }
 });
