@@ -154,7 +154,7 @@ export default function AdminScreen() {
     if (!token) return;
     const personId = person._id || person.id || '';
     if (personId === adminId) {
-      Alert.alert('Current admin account', 'You cannot permanently delete the admin account you are currently using.');
+      Alert.alert('Current admin account', 'You cannot archive the admin account you are currently using.');
       return;
     }
     Alert.alert(
@@ -173,7 +173,7 @@ export default function AdminScreen() {
             await load(token);
             Alert.alert('Account archived', result.message);
           } catch (error) {
-            Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.');
+            Alert.alert('Could not archive account', error instanceof Error ? error.message : 'Please try again.');
           } finally { setSaving(false); }
         } }
       ]
@@ -366,11 +366,11 @@ export default function AdminScreen() {
           <Text style={styles.note}>Admin accounts have full administrative access, including the ability to create other admin accounts.</Text>
           <Primary label={saving?'Creating…':`Create ${userForm.role === 'admin' ? 'admin' : 'employee'} account`} onPress={createAccount} disabled={saving}/>
         </Section>
-        <Section title="Account directory" hint="View profiles, deactivate employees, and permanently delete active or previously archived accounts.">
+        <Section title="Account directory" hint="View profiles, deactivate employees, and archive accounts while preserving attendance history.">
           {users.length===0 ? <Empty text="No accounts found."/> : users.map(person=><View key={person._id} style={styles.listRow}>
             <View style={{flex:1}}>
               <Text style={styles.rowTitle}>{person.name}</Text>
-              <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.isDeleted ? 'Archived · awaiting permanent deletion' : person.active ? 'Active' : 'Inactive'}</Text>
+              <Text style={styles.rowSub}>{person.employeeId} · {person.role === 'admin' ? 'Admin' : 'Employee'} · {person.isDeleted ? 'Archived · history retained' : person.active ? 'Active' : 'Inactive'}</Text>
             </View>
             <Pressable disabled={saving} onPress={()=>viewUserDetails(person)} style={styles.smallAction}><Text style={styles.smallActionText}>View profile</Text></Pressable>
             {person.isDeleted
@@ -378,7 +378,7 @@ export default function AdminScreen() {
               : person.role === 'employee'
                 ? <Pressable disabled={saving} onPress={()=>toggleAccount(person)} style={styles.smallAction}><Text style={styles.smallActionText}>{person.active?'Deactivate':'Reactivate'}</Text></Pressable>
                 : <Text style={styles.adminAccountTag}>ADMIN</Text>}
-            <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={permanentlyDeleteAccount.bind(null, person)} style={styles.smallAction}><Text style={[styles.smallActionText,styles.deactivateText]}>Delete permanently</Text></Pressable>
+            <Pressable disabled={saving || (person._id || person.id) === adminId} onPress={permanentlyDeleteAccount.bind(null, person)} style={styles.smallAction}><Text style={[styles.smallActionText,styles.deactivateText]} >Archive account</Text></Pressable>
           </View>)}
         </Section>
       </>}
