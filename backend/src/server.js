@@ -21,6 +21,9 @@ const app = express();
 app.set('trust proxy', 1);
 
 const origins = (process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
+if (process.env.NODE_ENV === 'production' && origins.length === 0) {
+  throw new Error('CORS_ORIGINS must contain the exact production frontend origins');
+}
 app.use(helmet());
 app.use(cors({ origin(origin, callback) {
   if (!origin || origins.length === 0 || origins.includes(origin)) return callback(null, true);
