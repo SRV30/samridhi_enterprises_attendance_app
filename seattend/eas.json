@@ -1,0 +1,25 @@
+﻿{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://samridhi-enterprises-attendance-app.vercel.app"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://samridhi-enterprises-attendance-app.vercel.app"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}
