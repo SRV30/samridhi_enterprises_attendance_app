@@ -47,7 +47,9 @@ export default function DashboardScreen() {
         const session = await getSession();
         if (!session) { router.replace('/'); return; }
         if (session.user.role === 'admin') { router.replace('/admin'); return; }
-        setToken(session.token); setName(session.user.name); setCurrentUserId(session.user.id);
+        const verifiedUser = await api.me(session.token);
+        if (verifiedUser.role !== 'employee') { router.replace('/admin'); return; }
+        setToken(session.token); setName(verifiedUser.name); setCurrentUserId(verifiedUser.id);
         await load(session.token);
       } catch (error) {
         if (error instanceof Error && /token|account|auth/i.test(error.message)) {
