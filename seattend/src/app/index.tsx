@@ -5,6 +5,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, apiConfigured } from '../lib/api';
+import { clearSession } from '../lib/session';
 import { getSession, saveSession } from '../lib/session';
 import BrandLogo from '../components/BrandLogo';
 
@@ -22,11 +23,15 @@ export default function LoginScreen() {
       try {
         const session = await getSession();
         if (session && isMounted) {
-          router.replace(session.user.role === 'admin' ? '/admin' : '/dashboard');
+          const user = await api.me(session.token);
+          if (!isMounted) return;
+          await saveSession(session.token, user);
+          router.replace(user.role === 'admin' ? '/admin' : '/dashboard');
           return;
         }
       } catch (error) {
-        console.warn('Could not restore saved session:', error);
+        console.warn('Saved session is no longer valid:', error);
+        await clearSession();
       }
 
       if (isMounted) setCheckingSession(false);
