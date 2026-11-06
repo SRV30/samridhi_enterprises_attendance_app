@@ -64,11 +64,17 @@ export default function AdminScreen() {
         const session = await getSession();
         if (!session) { router.replace('/'); return; }
         if (session.user.role !== 'admin') { router.replace('/dashboard'); return; }
+        const verifiedUser = await api.me(session.token);
         setToken(session.token);
-        setAdminName(session.user.name);
-        setAdminId(session.user.id);
+        setAdminName(verifiedUser.name);
+        setAdminId(verifiedUser.id);
         await load(session.token);
       } catch (error) {
+        if (error instanceof Error && /token|account|auth|expired|invalid/i.test(error.message)) {
+          await clearSession();
+          router.replace('/');
+          return;
+        }
         Alert.alert('Admin dashboard error', error instanceof Error ? error.message : 'Please try again.');
       } finally { setBusy(false); }
     })();
@@ -152,11 +158,11 @@ export default function AdminScreen() {
       return;
     }
     Alert.alert(
-      'Permanently delete account?',
-      'This action cannot be undone. The account, login credentials, attendance visits and personal notifications will be permanently removed. Company shop records will remain.',
+      'Archive account?',
+      'The account will be disabled and archived. Attendance history, reports and company shop records will be preserved.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Permanently delete', style: 'destructive', onPress: async () => {
+        { text: 'Archive account', style: 'destructive', onPress: async () => {
           setSaving(true);
           try {
             const result = await api.deleteUser(token, personId);
@@ -165,7 +171,7 @@ export default function AdminScreen() {
               setSelectedUser(null);
             }
             await load(token);
-            Alert.alert('Account permanently deleted', result.message);
+            Alert.alert('Account archived', result.message);
           } catch (error) {
             Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.');
           } finally { setSaving(false); }
